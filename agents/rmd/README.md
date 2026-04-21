@@ -171,49 +171,56 @@ LLM does orchestration only. All math (`compute_rmd`), eligibility logic, schema
 
 ---
 
-## How to run
+## Quick start
 
 ```bash
-cd agents/rmd
-
-# Install
+# 1. Install dependencies — run once from the repo root
+cd /path/to/financial-planning
 uv sync
 
-# Credentials
+# 2. Set API key
 export ANTHROPIC_API_KEY=sk-ant-...
-aws sso login --profile data-lake-dev
 
-# Run against real account (fetches from ontology)
-make run ACCOUNT_ID=38279295 BALANCE=178399
+# 3. Run all test fixtures (no AWS needed)
+cd agents/rmd
+make test
 
-# Run with manual input (no AWS needed)
+# 4. Run with manual input (no AWS needed)
 make run-manual DOB=1950-03-15 TYPE="Traditional IRA" BALANCE=320000 YTD=10000
 
-# Run all fixtures
-make test
+# 5. Run against a real account (requires AWS SSO)
+aws sso login --profile data-lake-dev
+make run ACCOUNT_ID=38279295 BALANCE=178399
 ```
+
+One shared environment at the repo root (`financial-planning/.venv/`). Steps 1–4 require no database access. Step 5 requires AWS SSO for the Farther ontology.
 
 ---
 
 ## Test fixtures
 
-13 fixtures covering all eligibility branches and error cases:
+18 fixtures covering all eligibility branches, boundary cases, and error cases:
 
 | Fixture | Scenario |
 |---|---|
-| 01 | Eligible — not started, no cash data |
-| 02 | Eligible — in progress |
-| 03 | Eligible — completed |
-| 04 | Not eligible — too young (age 65) |
-| 05 | Not eligible — Roth IRA |
-| 06 | Eligible — cash covers remaining |
-| 07 | Eligible — cash insufficient (liquidation warning) |
-| 08 | Missing DOB → `INSUFFICIENT_DATA` |
-| 09 | Missing balance → `INSUFFICIENT_DATA` |
-| 10 | SEP IRA — eligible |
-| 11 | Rollover IRA — eligible |
-| 12 | Inherited IRA → `MANUAL_REVIEW` |
-| 13 | Employer Retirement Plan (401k/403b) — eligible |
+| 01 | Age 76, Traditional IRA — not started |
+| 02 | Age 80, Traditional IRA — in progress |
+| 03 | Age 74, Traditional IRA — completed |
+| 04 | Roth IRA — never subject to RMDs → `NO_ACTION` |
+| 05 | Age 65 — under 73, not yet eligible → `NO_ACTION` |
+| 06 | Missing DOB and balance — ask back → `INSUFFICIENT_DATA` |
+| 07 | All fields supplied manually — no DB lookup |
+| 08 | Negative balance — rejected before compute → `INSUFFICIENT_DATA` |
+| 09 | Invalid DOB format — rejected before compute → `INSUFFICIENT_DATA` |
+| 10 | Lowercase `traditional ira` — case-insensitive match |
+| 11 | Lowercase `roth ira` — not eligible, not unknown type |
+| 12 | Inherited IRA — standard table does not apply → `MANUAL_REVIEW` |
+| 13 | Employer Retirement Plan (401k/403b/457b) — eligible |
+| 14 | Age 73 — first RMD year, IRS factor 26.5 |
+| 15 | Zero balance — RMD is zero, nothing owed → `RMD_COMPLETE` |
+| 16 | YTD equals RMD exactly — boundary → `RMD_COMPLETE` |
+| 17 | SEP IRA — eligible, same Uniform Lifetime Table |
+| 18 | Rollover IRA — eligible, same Uniform Lifetime Table |
 
 ---
 
@@ -225,10 +232,7 @@ make test
 | YTD withdrawals require advisor input | No transaction history in ontology | Defaults to 0, flagged with `USER_PROVIDED_WITHDRAWAL_YTD` |
 | DOB missing for Pershing accounts | Advisor must provide DOB for Pershing clients | Resolved when people data lands in ontology |
 | Inherited IRA always manual review | Cannot evaluate 10-year rule automatically | No automated source for beneficiary death date |
-| `decision` enum not yet in code | Step 1 Task 2 | In progress |
-| `data_quality[]` / `completeness` / `input_echo` not yet in code | Step 1 Task 4 | In progress |
-| JSON parse retry not yet implemented | Step 1 Task 5 | In progress |
-| NL input layer not yet built | Step 1 Task 8 | In progress |
+| NL input layer not yet built | Free-text advisor input not yet parsed | Step 1 Task 8 |
 
 ---
 
@@ -237,11 +241,11 @@ make test
 Before this agent connects to the integration agent:
 
 - [ ] `make test` → 13/13 pass
-- [ ] `decision` enum on every output — no free-text decisions
-- [ ] All schema keys always present — no silent missing fields
-- [ ] `data_quality[]` and `completeness` on every output
-- [ ] `input_echo` on every output
-- [ ] JSON parse retry — no parse failures in 20 consecutive `make test` runs
+- [x] `decision` enum on every output — uppercase, Python-controlled
+- [x] All schema keys always present — `OUTPUT_SCHEMA` merge in `post_check`
+- [x] `data_quality[]` and `completeness` on every output
+- [x] `input_echo` on every output
+- [x] JSON parse retry — 3-attempt loop with fence stripping
 - [ ] NL layer: 5 advisor phrasings → correct `evaluate()` call
 - [ ] CI gate blocking on fixture failures
 - [ ] Bedrock swap verified

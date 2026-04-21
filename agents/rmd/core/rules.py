@@ -127,8 +127,9 @@ def post_check(agent_result: dict) -> dict:
         result["reason"] = f"Unrecognised decision value '{decision}'."
         result["_source"] = "post_check:invalid_decision"
 
-    # Guard: eligible account but no RMD amount computed
-    elif eligible is True and (rmd_amt is None or rmd_amt == 0):
+    # Guard: eligible account but RMD amount missing (None means compute failed)
+    # rmd_amount=0.0 is valid — zero balance produces zero RMD
+    elif eligible is True and rmd_amt is None:
         result["decision"] = "ERROR"
         result["reason"] = "Account is RMD-eligible but no required amount was computed. Review prior year-end balance."
         result["_source"] = "post_check:missing_rmd_amount"

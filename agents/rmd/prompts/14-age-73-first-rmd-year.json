@@ -1,0 +1,14 @@
+{
+  "id": "rmd-14",
+  "description": "Age 73 — first RMD year, IRS factor 26.5",
+  "account_id": "manual-input",
+  "client_input": {
+    "date_of_birth": "1953-07-04",
+    "account_type": "Traditional IRA",
+    "prior_year_end_balance": 100000,
+    "withdrawal_amount_ytd": 0
+  },
+  "expected_eligible": true,
+  "expected_status": "Not Started",
+  "expected_decision": null
+}

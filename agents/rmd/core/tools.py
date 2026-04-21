@@ -424,7 +424,10 @@ def build_tools(auth_token: str, account_id: str, client_input: dict) -> tuple[A
         remaining = round(max(rmd_amount - ytd, 0.0), 2)
 
         # Withdrawal status
-        if ytd <= 0:
+        # Zero balance → zero RMD → nothing owed → Completed
+        if rmd_amount == 0:
+            status = "Completed"
+        elif ytd <= 0:
             status = "Not Started"
         elif ytd < rmd_amount:
             status = "In Progress"

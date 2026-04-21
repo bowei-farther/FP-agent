@@ -1,0 +1,14 @@
+{
+  "id": "rmd-16",
+  "description": "YTD withdrawal equals RMD exactly — boundary between In Progress and Completed",
+  "account_id": "manual-input",
+  "client_input": {
+    "date_of_birth": "1949-06-15",
+    "account_type": "Traditional IRA",
+    "prior_year_end_balance": 480000,
+    "withdrawal_amount_ytd": 20960.70
+  },
+  "expected_eligible": true,
+  "expected_status": "Completed",
+  "expected_decision": "RMD_COMPLETE"
+}
