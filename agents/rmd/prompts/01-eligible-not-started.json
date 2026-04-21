@@ -1,0 +1,15 @@
+{
+  "id": "rmd-01",
+  "description": "Age 76, Traditional IRA, no withdrawals yet — not started",
+  "account_id": "manual-input",
+  "client_input": {
+    "date_of_birth": "1949-06-15",
+    "account_type": "Traditional IRA",
+    "prior_year_end_balance": 480000,
+    "withdrawal_amount_ytd": 0,
+    "available_cash": 25000,
+    "market_value": 492000
+  },
+  "expected_eligible": true,
+  "expected_status": "Not Started"
+}

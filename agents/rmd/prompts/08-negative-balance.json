@@ -1,0 +1,14 @@
+{
+  "id": "rmd-08",
+  "description": "Negative prior_year_end_balance — should be rejected before computing RMD",
+  "account_id": "manual-input",
+  "client_input": {
+    "date_of_birth": "1949-06-15",
+    "account_type": "Traditional IRA",
+    "prior_year_end_balance": -5000,
+    "withdrawal_amount_ytd": 0
+  },
+  "expected_eligible": null,
+  "expected_status": null,
+  "expected_decision": "missing_data"
+}

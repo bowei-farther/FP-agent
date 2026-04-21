@@ -1,0 +1,14 @@
+{
+  "id": "rmd-09",
+  "description": "Invalid date_of_birth format — should return missing_data, not crash",
+  "account_id": "manual-input",
+  "client_input": {
+    "date_of_birth": "not-a-date",
+    "account_type": "Traditional IRA",
+    "prior_year_end_balance": 480000,
+    "withdrawal_amount_ytd": 0
+  },
+  "expected_eligible": null,
+  "expected_status": null,
+  "expected_decision": "missing_data"
+}

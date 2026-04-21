@@ -1,0 +1,15 @@
+{
+  "id": "rmd-05",
+  "description": "Age 65 — under 73, not eligible",
+  "account_id": "manual-input",
+  "client_input": {
+    "date_of_birth": "1960-09-10",
+    "account_type": "Traditional IRA",
+    "prior_year_end_balance": 95000,
+    "withdrawal_amount_ytd": 0,
+    "available_cash": 3000,
+    "market_value": 98000
+  },
+  "expected_eligible": false,
+  "expected_status": "Not Applicable"
+}

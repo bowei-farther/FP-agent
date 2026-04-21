@@ -1,0 +1,15 @@
+{
+  "id": "rmd-03",
+  "description": "Age 74, Traditional IRA, RMD fully completed",
+  "account_id": "manual-input",
+  "client_input": {
+    "date_of_birth": "1951-11-01",
+    "account_type": "Traditional IRA",
+    "prior_year_end_balance": 200000,
+    "withdrawal_amount_ytd": 9000,
+    "available_cash": 12000,
+    "market_value": 198000
+  },
+  "expected_eligible": true,
+  "expected_status": "Completed"
+}

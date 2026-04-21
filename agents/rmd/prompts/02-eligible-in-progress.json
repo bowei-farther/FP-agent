@@ -1,0 +1,15 @@
+{
+  "id": "rmd-02",
+  "description": "Age 80, Traditional IRA, partial withdrawal taken — in progress",
+  "account_id": "manual-input",
+  "client_input": {
+    "date_of_birth": "1945-03-20",
+    "account_type": "Traditional IRA",
+    "prior_year_end_balance": 320000,
+    "withdrawal_amount_ytd": 8000,
+    "available_cash": 5000,
+    "market_value": 315000
+  },
+  "expected_eligible": true,
+  "expected_status": "In Progress"
+}

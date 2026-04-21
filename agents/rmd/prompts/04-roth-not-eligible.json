@@ -1,0 +1,15 @@
+{
+  "id": "rmd-04",
+  "description": "Roth IRA — never subject to RMDs",
+  "account_id": "manual-input",
+  "client_input": {
+    "date_of_birth": "1948-07-04",
+    "account_type": "Roth IRA",
+    "prior_year_end_balance": 150000,
+    "withdrawal_amount_ytd": 0,
+    "available_cash": 8000,
+    "market_value": 155000
+  },
+  "expected_eligible": false,
+  "expected_status": "Not Applicable"
+}

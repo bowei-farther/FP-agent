@@ -1,0 +1,14 @@
+{
+  "id": "rmd-07",
+  "description": "All data supplied manually — no DB lookup",
+  "account_id": "manual-input",
+  "client_input": {
+    "date_of_birth": "1948-03-15",
+    "account_type": "Traditional IRA",
+    "prior_year_end_balance": 320000,
+    "withdrawal_amount_ytd": 10000,
+    "available_cash": 15000
+  },
+  "expected_eligible": true,
+  "expected_status": "In Progress"
+}
