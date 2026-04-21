@@ -20,6 +20,7 @@ It never executes financial actions. Advisor confirmation is always required.
 
 ```
 financial-planning/
+  pyproject.toml               ← single shared environment for all agents
   README.md                    ← entry point and documentation guide
   PLAN.md                      ← execution plan: output schema, tasks, gates
   docs/
@@ -30,16 +31,18 @@ financial-planning/
       README.md
     rmd/                       ← RMD sub-agent (Step 1)
       README.md
-      rmd/                     ← agent package
+      core/                    ← agent package (tools, rules, agent, prompts)
       prompts/                 ← test fixtures
       run_tests.py
       Makefile
-      pyproject.toml
+      agent.py                 ← CLI entry point
     roth/                      ← Roth conversion sub-agent (Step 2)
     tlh/                       ← Tax loss harvesting sub-agent (Step 2)
 ```
 
-**Why agents are isolated directories:** Each sub-agent is a standalone package with its own `pyproject.toml`, `Makefile`, and fixtures. It can be installed, run, and tested independently with no knowledge of the others. Adding a new agent is additive — it gets its own directory. No existing file changes.
+**Why one shared environment:** A single `pyproject.toml` at the repo root means one `uv sync` installs everything. All agents share the same dependency versions — no drift, no per-agent setup overhead. Separate environments only make sense if a real dependency conflict appears, which is a later-stage optimization for 16+ agents.
+
+**Why agents are isolated directories:** Each sub-agent has its own `Makefile`, fixtures, and package. It can be run and tested independently with no knowledge of the others. Adding a new agent is additive — it gets its own directory. No existing file changes.
 
 **Why integration is at the same level as sub-agents:** `agents/integration/` and `agents/rmd/` are siblings, not parent/child. The integration agent does not own or contain the sub-agents. It calls them. Same directory level reflects same abstraction level — they are all agents, with different responsibilities.
 

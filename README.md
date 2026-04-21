@@ -58,27 +58,29 @@ Non-negotiable rules: [docs/PRINCIPLES.md](docs/PRINCIPLES.md)
 
 ---
 
-## Quick start (RMD agent — most mature)
+## Quick start (RMD agent)
 
 ```bash
-cd agents/rmd
-
-# Install
+# 1. Go to the repo root and install dependencies
+cd /Users/bowei/Documents/financial-planning
 uv sync
 
-# Credentials
+# 2. Set your API key
 export ANTHROPIC_API_KEY=sk-ant-...
-aws sso login --profile data-lake-dev
 
-# Run tests (no AWS needed)
+# 3. Run all test fixtures (no AWS needed)
+cd agents/rmd
 make test
 
-# Run with real account
-make run ACCOUNT_ID=38279295 BALANCE=178399
-
-# Run with manual input (no AWS needed)
+# 4. Run with manual input (no AWS needed)
 make run-manual DOB=1950-03-15 TYPE="Traditional IRA" BALANCE=320000 YTD=10000
+
+# 5. Run against a real account (requires AWS SSO)
+aws sso login --profile data-lake-dev
+make run ACCOUNT_ID=38279295 BALANCE=178399
 ```
+
+Full details: [agents/rmd/README.md](agents/rmd/README.md)
 
 ---
 
@@ -108,6 +110,8 @@ See [PLAN.md](PLAN.md) for the full build plan.
 
 ```
 financial-planning/
+  pyproject.toml               ← single shared environment for all agents
+  uv.lock                      ← locked dependencies
   README.md                    ← this file
   PLAN.md                      ← step-by-step build plan
   docs/
@@ -118,11 +122,11 @@ financial-planning/
       README.md                ← orchestration logic (Step 2)
     rmd/
       README.md                ← RMD agent
-      rmd/                     ← agent code
+      core/                    ← agent package (tools, rules, agent, prompts)
       prompts/                 ← test fixtures
+      agent.py                 ← CLI entry point
       run_tests.py
       Makefile
-      pyproject.toml
     roth/                      ← Step 2
     tlh/                       ← Step 2
 ```
