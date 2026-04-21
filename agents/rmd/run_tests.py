@@ -14,10 +14,10 @@ import json
 import sys
 from pathlib import Path
 
-# Add the agent root to sys.path so `import rmd` resolves to ./rmd/
+# Add the agent root to sys.path so `import core` resolves to ./core/
 sys.path.insert(0, str(Path(__file__).parent))
 
-import rmd
+import core as rmd
 
 PROMPTS_DIR = Path(__file__).parent / "prompts"
 PASS = "\033[92mPASS\033[0m"

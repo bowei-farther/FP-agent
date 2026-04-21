@@ -10,5 +10,5 @@
   },
   "expected_eligible": null,
   "expected_status": null,
-  "expected_decision": "missing_data"
+  "expected_decision": "INSUFFICIENT_DATA"
 }

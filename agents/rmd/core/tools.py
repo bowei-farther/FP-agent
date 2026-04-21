@@ -59,7 +59,7 @@ RMD_ELIGIBLE_ACCOUNT_TYPES: frozenset[str] = frozenset({
 })
 
 # Inherited IRAs have different rules (10-year rule for non-spouse beneficiaries).
-# Listed separately so compute_rmd can return a specific flag rather than silently
+# Listed separately so compute_rmd can return MANUAL_REVIEW rather than silently
 # applying the standard Uniform Lifetime Table.
 INHERITED_IRA_ACCOUNT_TYPES: frozenset[str] = frozenset({
     t.lower() for t in {"Inherited IRA", "INHERITED_IRA"}
@@ -76,6 +76,20 @@ ROTH_ACCOUNT_TYPES: frozenset[str] = frozenset({
 REQUIRED_FIELDS = ["date_of_birth", "account_type", "prior_year_end_balance"]
 
 _BASE_URL = "https://ontology.dev.datalake.finops-data.na.farther.com"
+
+# ---------------------------------------------------------------------------
+# data_quality constants (P7 — system-facing provenance, never mixed with flags)
+# Used by get_client_data() to record how each field was resolved.
+# post_check() uses these to compute completeness.
+# ---------------------------------------------------------------------------
+
+DQ_USING_LATEST_BALANCE_AS_PROXY = "USING_LATEST_BALANCE_AS_PROXY"
+DQ_USER_PROVIDED_BALANCE         = "USER_PROVIDED_BALANCE"
+DQ_USER_PROVIDED_WITHDRAWAL_YTD  = "USER_PROVIDED_WITHDRAWAL_YTD"
+DQ_DOB_FROM_DB                   = "DOB_FROM_DB"
+DQ_DOB_FROM_INPUT                = "DOB_FROM_INPUT"
+DQ_ACCOUNT_TYPE_FROM_DB          = "ACCOUNT_TYPE_FROM_DB"
+DQ_ACCOUNT_TYPE_FROM_INPUT       = "ACCOUNT_TYPE_FROM_INPUT"
 
 
 # ---------------------------------------------------------------------------
@@ -141,10 +155,9 @@ def _fetch_daily(auth_token: str, id_object: int) -> dict:
       account_settled_cash  (1302) → settled_cash
       account_sweep_balance (1436) → sweep_balance
 
-    Fields NOT in the ontology (must come from human input or Athena):
+    Fields NOT in the ontology (must come from human input):
       prior_year_end_balance as of exactly Dec 31 — account_balance is latest, not Dec 31 snapshot
-      withdrawal_amount_ytd  → Athena fidelity_actv_posted_txn / schwab_crs_trn (not yet wired)
-      rmd_amount             → Athena fidelity_tax_rmd_estimates (not yet wired)
+      withdrawal_amount_ytd  — no transaction history in ontology
     """
     fields = {
         "account_balance":        "prior_year_end_balance_db",
@@ -191,12 +204,17 @@ def build_tools(auth_token: str, account_id: str, client_input: dict) -> tuple[A
         required fields (date_of_birth, account_type, prior_year_end_balance)
         that could not be resolved from either source.
 
+        Also returns data_quality[] — named constants recording how each
+        field was resolved. Used by post_check to compute completeness.
+
         Returns:
             dict with fields: account_id, account_type, date_of_birth,
             prior_year_end_balance, market_value, available_cash,
             settled_cash, sweep_balance, withdrawal_amount_ytd,
-            rmd_amount, _source, _missing.
+            data_quality, _source, _missing.
         """
+        data_quality: list[str] = []
+
         # Start with human input
         data: dict[str, Any] = {
             "account_id":             account_id,
@@ -210,8 +228,17 @@ def build_tools(auth_token: str, account_id: str, client_input: dict) -> tuple[A
             "settled_cash":           client_input.get("settled_cash"),
             "sweep_balance":          client_input.get("sweep_balance"),
             "withdrawal_amount_ytd":  client_input.get("withdrawal_amount_ytd"),
-            "rmd_amount":             client_input.get("rmd_amount"),
         }
+
+        # Record provenance for human-provided fields
+        if data["date_of_birth"] is not None:
+            data_quality.append(DQ_DOB_FROM_INPUT)
+        if data["account_type"] is not None:
+            data_quality.append(DQ_ACCOUNT_TYPE_FROM_INPUT)
+        if data["prior_year_end_balance"] is not None:
+            data_quality.append(DQ_USER_PROVIDED_BALANCE)
+        if data["withdrawal_amount_ytd"] is not None:
+            data_quality.append(DQ_USER_PROVIDED_WITHDRAWAL_YTD)
 
         # Fill missing fields from database
         needs_db = any(data.get(f) is None for f in REQUIRED_FIELDS)
@@ -223,8 +250,12 @@ def build_tools(auth_token: str, account_id: str, client_input: dict) -> tuple[A
                 db_source = "api"
                 if data["account_type"] is None:
                     data["account_type"] = obj.get("account_type")
+                    if data["account_type"] is not None:
+                        data_quality.append(DQ_ACCOUNT_TYPE_FROM_DB)
                 if data["date_of_birth"] is None:
                     data["date_of_birth"] = obj.get("date_of_birth")
+                    if data["date_of_birth"] is not None:
+                        data_quality.append(DQ_DOB_FROM_DB)
                 if data["client_name"] is None:
                     first = obj.get("first_name", "")
                     last = obj.get("last_name", "")
@@ -236,20 +267,17 @@ def build_tools(auth_token: str, account_id: str, client_input: dict) -> tuple[A
                 id_object = obj.get("id_object")
                 if id_object:
                     daily = _fetch_daily(auth_token, id_object)
-                    # prior_year_end_balance: human input wins; DB value is latest balance,
-                    # not the Dec 31 snapshot, so we use it only as a fallback and flag it.
+                    # prior_year_end_balance: human input wins.
+                    # DB value is latest balance, not the Dec 31 snapshot —
+                    # use only as fallback and flag it explicitly (P2, P4).
                     if data["prior_year_end_balance"] is None and daily.get("prior_year_end_balance_db") is not None:
                         data["prior_year_end_balance"] = daily["prior_year_end_balance_db"]
-                        data["_balance_source_warning"] = (
-                            "prior_year_end_balance sourced from account_balance (current), "
-                            "not Dec 31 prior year snapshot. Confirm with advisor."
-                        )
+                        data_quality.append(DQ_USING_LATEST_BALANCE_AS_PROXY)
                     for key in ["market_value", "available_cash", "settled_cash", "sweep_balance"]:
                         if data.get(key) is None:
                             data[key] = daily.get(key)
 
-
-        # Determine source label
+        # Determine _source label
         has_input = any(client_input.get(f) for f in REQUIRED_FIELDS)
         if has_input and db_source == "api":
             data["_source"] = "input+api"
@@ -260,6 +288,7 @@ def build_tools(auth_token: str, account_id: str, client_input: dict) -> tuple[A
         else:
             data["_source"] = "not_found"
 
+        data["data_quality"] = data_quality
         data["_missing"] = [f for f in REQUIRED_FIELDS if data.get(f) is None]
         return data
 
@@ -278,6 +307,8 @@ def build_tools(auth_token: str, account_id: str, client_input: dict) -> tuple[A
         Uses the IRS Uniform Lifetime Table (2022 revision).
         Distribution year is 2026. Age is calculated as of Dec 31, 2026.
 
+        The `decision` field is always set by this function — never by the LLM (P10).
+
         Args:
             date_of_birth: ISO date string e.g. '1950-03-15'.
             account_type: e.g. 'Traditional IRA'.
@@ -288,13 +319,13 @@ def build_tools(auth_token: str, account_id: str, client_input: dict) -> tuple[A
             available_cash: Uninvested cash (informational).
 
         Returns:
-            dict with: eligible, reason, age, rmd_required_amount,
+            dict with: decision, eligible, reason, age, rmd_required_amount,
             withdrawal_amount_ytd, remaining_rmd, withdrawal_status,
             available_cash, market_value, cash_covers_remaining, flags.
         """
         if prior_year_end_balance < 0:
             return {
-                "decision": "missing_data",
+                "decision": "INSUFFICIENT_DATA",
                 "missing_fields": ["prior_year_end_balance"],
                 "reason": f"prior_year_end_balance cannot be negative (got {prior_year_end_balance}).",
             }
@@ -302,7 +333,7 @@ def build_tools(auth_token: str, account_id: str, client_input: dict) -> tuple[A
         age = _age_as_of_dec31(date_of_birth, DISTRIBUTION_YEAR)
         if age is None:
             return {
-                "decision": "missing_data",
+                "decision": "INSUFFICIENT_DATA",
                 "missing_fields": ["date_of_birth"],
                 "reason": f"date_of_birth '{date_of_birth}' is not a valid ISO date (expected YYYY-MM-DD).",
             }
@@ -311,10 +342,9 @@ def build_tools(auth_token: str, account_id: str, client_input: dict) -> tuple[A
 
         # Inherited IRA — different RMD rules apply (10-year rule, Life Expectancy method).
         # Cannot be evaluated with the standard Uniform Lifetime Table.
-        # Return a clear flag so the advisor handles this manually.
         if account_type_norm in INHERITED_IRA_ACCOUNT_TYPES:
             return {
-                "decision": "manual_review",
+                "decision": "MANUAL_REVIEW",
                 "eligible": None,
                 "reason": (
                     "Inherited IRAs are subject to special RMD rules (e.g., 10-year rule for "
@@ -335,6 +365,7 @@ def build_tools(auth_token: str, account_id: str, client_input: dict) -> tuple[A
         # Not eligible: Roth
         if account_type_norm in ROTH_ACCOUNT_TYPES:
             return {
+                "decision": "NO_ACTION",
                 "eligible": False,
                 "reason": "Roth IRA accounts are not subject to RMDs during the owner's lifetime.",
                 "age": age,
@@ -351,6 +382,7 @@ def build_tools(auth_token: str, account_id: str, client_input: dict) -> tuple[A
         # Not eligible: under age 73
         if age < RMD_MIN_AGE:
             return {
+                "decision": "NO_ACTION",
                 "eligible": False,
                 "reason": f"Client is age {age} as of Dec 31, {DISTRIBUTION_YEAR}. RMDs begin at age {RMD_MIN_AGE}.",
                 "age": age,
@@ -367,6 +399,7 @@ def build_tools(auth_token: str, account_id: str, client_input: dict) -> tuple[A
         # Not eligible: unrecognised account type
         if account_type_norm not in RMD_ELIGIBLE_ACCOUNT_TYPES:
             return {
+                "decision": "NO_ACTION",
                 "eligible": False,
                 "reason": f"Account type '{account_type}' is not subject to RMDs.",
                 "age": age,
@@ -380,7 +413,7 @@ def build_tools(auth_token: str, account_id: str, client_input: dict) -> tuple[A
                 "flags": [],
             }
 
-        # RMD amount: use stored if available, else compute
+        # RMD amount: use stored if available, else compute from IRS table
         if rmd_amount_stored is not None:
             rmd_amount = round(float(rmd_amount_stored), 2)
         else:
@@ -402,7 +435,7 @@ def build_tools(auth_token: str, account_id: str, client_input: dict) -> tuple[A
         cash = float(available_cash) if available_cash is not None else None
         cash_covers = (cash >= remaining) if cash is not None and remaining > 0 else None
 
-        # Flags
+        # Flags (advisor-facing — P7)
         flags: list[str] = []
         today = date.today()
         days_left = (date(DISTRIBUTION_YEAR, 12, 31) - today).days
@@ -414,7 +447,18 @@ def build_tools(auth_token: str, account_id: str, client_input: dict) -> tuple[A
         if cash is not None and remaining > 0 and cash < remaining:
             flags.append(f"Available cash (${cash:,.2f}) is insufficient to cover remaining RMD (${remaining:,.2f}) — liquidation may be required.")
 
+        # decision: set by Python from verified field values — never by LLM (P10)
+        if status == "Completed":
+            decision = "RMD_COMPLETE"
+        elif days_left < 90:
+            decision = "TAKE_RMD_NOW"
+        elif status == "In Progress":
+            decision = "RMD_IN_PROGRESS"
+        else:
+            decision = "RMD_PENDING"
+
         return {
+            "decision": decision,
             "eligible": True,
             "reason": f"Client is age {age} and holds a {account_type}.",
             "age": age,
