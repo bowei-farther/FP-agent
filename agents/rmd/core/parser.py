@@ -22,10 +22,9 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import re
 
-import anthropic
+import boto3
 
 from .tools import DISTRIBUTION_YEAR, RMD_ELIGIBLE_ACCOUNT_TYPES, ROTH_ACCOUNT_TYPES, INHERITED_IRA_ACCOUNT_TYPES
 
@@ -154,21 +153,16 @@ def _extract_fields(text: str) -> dict:
     Returns a dict with all keys present (null for missing fields).
     Never raises — returns empty extraction on failure.
     """
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        raise ValueError("ANTHROPIC_API_KEY not set")
-
-    client = anthropic.Anthropic(api_key=api_key)
+    client = boto3.client("bedrock-runtime", region_name="us-east-1")
     prompt = _EXTRACTION_PROMPT.replace("{input}", text)
 
     try:
-        message = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=512,
-            temperature=0,
-            messages=[{"role": "user", "content": prompt}],
+        response = client.converse(
+            modelId="us.anthropic.claude-haiku-4-5-20251001-v1:0",
+            messages=[{"role": "user", "content": [{"text": prompt}]}],
+            inferenceConfig={"maxTokens": 512, "temperature": 0},
         )
-        raw = message.content[0].text.strip()
+        raw = response["output"]["message"]["content"][0]["text"].strip()
 
         # Strip markdown fences if present
         raw = re.sub(r"^```(?:json)?\s*", "", raw)

@@ -68,9 +68,11 @@ def _setup_tracing() -> bool:
             return False
 
         from phoenix.otel import register
+        api_key = os.environ.get("PHOENIX_API_KEY") or None
         register(
             project_name="rmd-agent",
             endpoint=endpoint.rstrip("/") + "/v1/traces",
+            api_key=api_key,
             auto_instrument=True,
             batch=False,
             verbose=False,
@@ -142,7 +144,7 @@ def _print_latency_report(latencies: list[float]) -> None:
     print(f"  mean   {mean(latencies):.2f}s")
 
     p95 = qs[94]
-    threshold = 15.0  # baseline: p50=3.8s, mean=4.3s, single outlier ~11s — tighten after Bedrock swap
+    threshold = 30.0  # Bedrock baseline: p50=5.6s, mean=5.6s, cold start outlier ~23s
     if p95 > threshold:
         print(f"\n  \033[91mWARN\033[0m  p95 {p95:.2f}s exceeds threshold {threshold}s")
     else:

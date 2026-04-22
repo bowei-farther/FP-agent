@@ -14,7 +14,7 @@ import re
 from pathlib import Path
 
 from strands import Agent
-from strands.models.anthropic import AnthropicModel
+from strands.models.bedrock import BedrockModel
 
 from .rules import OUTPUT_SCHEMA, post_check, pre_check
 from .tools import DISTRIBUTION_YEAR, build_tools
@@ -25,15 +25,11 @@ _PROMPT_FILE = Path(__file__).parent / "prompts" / "system_prompt.md"
 SYSTEM_PROMPT = _PROMPT_FILE.read_text().replace("{distribution_year}", str(DISTRIBUTION_YEAR))
 
 
-def _model() -> AnthropicModel:
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        raise ValueError("ANTHROPIC_API_KEY not set")
-    return AnthropicModel(
-        model_id="claude-haiku-4-5-20251001",
+def _model() -> BedrockModel:
+    return BedrockModel(
+        model_id="us.anthropic.claude-haiku-4-5-20251001-v1:0",
         max_tokens=1024,
-        params={"temperature": 0},
-        client_args={"api_key": api_key},
+        temperature=0,
     )
 
 
