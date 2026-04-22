@@ -1,6 +1,6 @@
 {
   "id": "rmd-03",
-  "description": "Age 74, Traditional IRA, RMD fully completed",
+  "description": "Age 75, Traditional IRA, RMD fully completed (ytd 9000 > rmd 8130.08)",
   "account_id": "manual-input",
   "client_input": {
     "date_of_birth": "1951-11-01",
