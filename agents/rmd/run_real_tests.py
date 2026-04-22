@@ -5,11 +5,12 @@ Requires AWS_PROFILE=data-lake-dev and a valid auth token.
 
 Usage:
   make test-real
-  AWS_PROFILE=data-lake-dev uv run python agents/rmd/run_real_tests.py
+  make test-real-trace   # also sends traces to Phoenix
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import sys
@@ -22,6 +23,42 @@ PROMPTS_DIR = Path(__file__).parent / "prompts" / "real"
 PASS = "\033[92mPASS\033[0m"
 FAIL = "\033[91mFAIL\033[0m"
 SKIP = "\033[93mSKIP\033[0m"
+
+# Tracer — set up when --trace is passed, otherwise a no-op
+_tracer = None
+
+
+def _setup_tracing() -> bool:
+    global _tracer
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(Path(__file__).parent / "../../.env")
+
+        endpoint = os.environ.get("PHOENIX_COLLECTOR_ENDPOINT")
+        if not endpoint:
+            print("[trace] PHOENIX_COLLECTOR_ENDPOINT not set — tracing disabled")
+            return False
+
+        from phoenix.otel import register
+        from opentelemetry import trace
+
+        register(
+            project_name="rmd-agent",
+            endpoint=endpoint.rstrip("/") + "/v1/traces",
+            api_key=os.environ.get("PHOENIX_API_KEY") or None,
+            auto_instrument=True,
+            batch=False,
+            verbose=False,
+        )
+        _tracer = trace.get_tracer("rmd-real-tests")
+        print(f"[trace] Phoenix tracing active → {endpoint}")
+        return True
+    except ImportError:
+        print("[trace] phoenix-otel not installed — tracing disabled")
+        return False
+    except Exception as e:
+        print(f"[trace] tracing setup failed: {e}")
+        return False
 
 
 def _get_auth_token() -> str:
@@ -86,11 +123,37 @@ def run_fixture(path: Path, token: str) -> bool:
     client_input = fixture.get("client_input", {})
     label = f"[{fid}] {desc}"
 
-    try:
-        result = rmd_evaluate(token, account_id, client_input)
-    except Exception as e:
-        print(f"  {FAIL}  {label}\n         exception: {e}")
-        return False
+    span_name = f"rmd.evaluate [{fid}]"
+
+    def _run() -> dict:
+        return rmd_evaluate(token, account_id, client_input)
+
+    if _tracer is not None:
+        from opentelemetry.trace import StatusCode
+        with _tracer.start_as_current_span(span_name) as span:
+            span.set_attribute("fixture.id", fid)
+            span.set_attribute("fixture.description", desc)
+            span.set_attribute("account_id", account_id)
+            span.set_attribute("input.value", json.dumps({"account_id": account_id, "client_input": client_input}))
+            span.set_attribute("input.mime_type", "application/json")
+            try:
+                result = _run()
+            except Exception as e:
+                span.set_status(StatusCode.ERROR, str(e))
+                span.set_attribute("error", str(e))
+                print(f"  {FAIL}  {label}\n         exception: {e}")
+                return False
+            span.set_attribute("output.value", json.dumps(result))
+            span.set_attribute("output.mime_type", "application/json")
+            span.set_attribute("decision", result.get("decision", ""))
+            span.set_attribute("completeness", result.get("completeness", ""))
+            span.set_attribute("eligible", str(result.get("eligible")))
+    else:
+        try:
+            result = _run()
+        except Exception as e:
+            print(f"  {FAIL}  {label}\n         exception: {e}")
+            return False
 
     if result.get("decision") == "INSUFFICIENT_DATA" and result.get("_source") in ("not_found", "pre_check:missing_fields"):
         print(f"  {SKIP}  {label}")
@@ -107,11 +170,27 @@ def run_fixture(path: Path, token: str) -> bool:
     )
     tag = PASS if not errors else FAIL
     _print_result(tag, label, result, errors)
+
+    if _tracer is not None:
+        from opentelemetry import trace as _trace
+        current = _trace.get_current_span()
+        if errors:
+            current.set_attribute("test.passed", False)
+            current.set_attribute("test.errors", json.dumps(errors))
+        else:
+            current.set_attribute("test.passed", True)
+
     return not errors
 
 
-
 def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--trace", action="store_true", help="Send traces to Phoenix")
+    args = parser.parse_args()
+
+    if args.trace:
+        _setup_tracing()
+
     token = _get_auth_token()
 
     fixtures = sorted(PROMPTS_DIR.glob("*.json"))
