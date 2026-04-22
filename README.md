@@ -47,12 +47,10 @@ make run-rmd ACCOUNT_ID=38279295 BALANCE=178399
 
 ## Agents
 
-| Agent | Status | What it evaluates |
-|---|---|---|
-| RMD Eligibility | Step 1 complete | Required Minimum Distributions |
-| Roth Conversion | Step 2 — not yet built | Roth IRA conversion window |
-| Tax Loss Harvesting | Step 2 — not yet built | Unrealized loss harvesting |
-| Integration | Step 2 — not yet built | Routes, orchestrates, conflict detection |
+| Agent | Status |
+|---|---|
+| RMD Eligibility | Step 1 complete |
+| More sub-agents + integration agent | Step 2 — not yet started |
 
 ---
 
