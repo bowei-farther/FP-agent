@@ -5,6 +5,7 @@
   "_client": "Alice Phillips",
   "_custodian": "Schwab",
   "client_input": {
+    "account_type": "Rollover IRA",
     "prior_year_end_balance": 136730.19,
     "withdrawal_amount_ytd": 7000.00
   },

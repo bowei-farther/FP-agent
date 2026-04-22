@@ -17,7 +17,13 @@ from .tools import DISTRIBUTION_YEAR, compute_rmd, get_client_data
 logger = logging.getLogger(__name__)
 
 
-def evaluate(auth_token: str, account_id: str, client_input: dict | None = None, _today: date | None = None) -> dict:
+def evaluate(
+    auth_token: str,
+    account_id: str,
+    client_input: dict | None = None,
+    _today: date | None = None,
+    _distribution_year: int | None = None,
+) -> dict:
     """Full RMD pipeline: pre_check → get_client_data → compute_rmd → post_check.
 
     Args:
@@ -25,6 +31,7 @@ def evaluate(auth_token: str, account_id: str, client_input: dict | None = None,
         account_id: farther_virtual_account_id or 'manual-input'.
         client_input: Human-supplied field overrides — highest priority.
         _today: Override today's date for testing deadline logic. Uses date.today() if None.
+        _distribution_year: Override distribution year for testing. Uses current year if None.
 
     Returns:
         dict matching OUTPUT_SCHEMA with all keys always present.
@@ -74,6 +81,7 @@ def evaluate(auth_token: str, account_id: str, client_input: dict | None = None,
         market_value=data.get("market_value"),
         available_cash=data.get("available_cash"),
         _today=_today,
+        _distribution_year=_distribution_year,
         # Inherited IRA fields — only used when account_type is Inherited IRA
         beneficiary_dob=client_input.get("beneficiary_dob"),
         owner_death_date=client_input.get("owner_death_date"),

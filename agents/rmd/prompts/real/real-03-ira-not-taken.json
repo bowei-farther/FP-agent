@@ -1,10 +1,11 @@
 {
   "id": "real-03",
-  "description": "IRA, age 77, Schwab — no withdrawals, Not Taken",
+  "description": "Rollover IRA, age 77, Schwab — no withdrawals, Not Taken",
   "account_id": "60376025",
   "_client": "Adrian Simons",
   "_custodian": "Schwab",
   "client_input": {
+    "account_type": "Rollover IRA",
     "prior_year_end_balance": 408991.91,
     "withdrawal_amount_ytd": 0.00
   },

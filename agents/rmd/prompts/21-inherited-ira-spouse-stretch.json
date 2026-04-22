@@ -1,6 +1,6 @@
 {
   "id": "rmd-21",
-  "description": "Inherited IRA, spouse beneficiary — stretch rule, Single Life Expectancy Table",
+  "description": "Inherited IRA, spouse beneficiary \u2014 stretch rule, Single Life Expectancy Table",
   "account_id": "manual-input",
   "client_input": {
     "date_of_birth": "1950-05-20",
@@ -12,5 +12,6 @@
     "is_spouse_beneficiary": true
   },
   "expected_eligible": true,
-  "expected_decision": "RMD_PENDING"
+  "expected_decision": "RMD_PENDING",
+  "_distribution_year": 2026
 }

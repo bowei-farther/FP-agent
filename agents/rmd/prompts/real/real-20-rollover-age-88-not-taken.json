@@ -5,6 +5,7 @@
   "_client": "Arline Hughes",
   "_custodian": "Schwab",
   "client_input": {
+    "account_type": "Rollover IRA",
     "prior_year_end_balance": 787142.45,
     "withdrawal_amount_ytd": 0.00
   },

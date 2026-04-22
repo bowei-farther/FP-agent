@@ -1,6 +1,6 @@
 {
   "id": "rmd-22",
-  "description": "Inherited IRA, no beneficiary fields provided — falls back to MANUAL_REVIEW",
+  "description": "Inherited IRA, no beneficiary fields provided \u2014 falls back to MANUAL_REVIEW",
   "account_id": "manual-input",
   "client_input": {
     "date_of_birth": "1960-01-01",
@@ -10,5 +10,6 @@
   },
   "expected_eligible": null,
   "expected_decision": "MANUAL_REVIEW",
-  "expected_status": "Manual Review Required"
+  "expected_status": "Manual Review Required",
+  "_distribution_year": 2026
 }

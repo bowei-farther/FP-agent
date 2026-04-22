@@ -9,5 +9,6 @@
   "expected_status": null,
   "expected_decision": "INSUFFICIENT_DATA",
   "expected_completeness": "minimal",
-  "expected_data_quality": []
+  "expected_data_quality": [],
+  "_distribution_year": 2026
 }

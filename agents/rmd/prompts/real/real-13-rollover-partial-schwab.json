@@ -5,6 +5,7 @@
   "_client": "Aileen Niemann",
   "_custodian": "Schwab",
   "client_input": {
+    "account_type": "Rollover IRA",
     "prior_year_end_balance": 501284.43,
     "withdrawal_amount_ytd": 22005.79
   },

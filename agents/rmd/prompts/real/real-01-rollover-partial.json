@@ -5,6 +5,7 @@
   "_client": "Adela Karliner",
   "_custodian": "Schwab",
   "client_input": {
+    "account_type": "Rollover IRA",
     "prior_year_end_balance": 1912648.16,
     "withdrawal_amount_ytd": 20000.00
   },
