@@ -12,25 +12,6 @@ This is a **decision support system** — it surfaces recommendations and flags 
 
 ---
 
-## Repository Structure
-
-```
-financial-planning/
-  pyproject.toml               ← single shared environment for all agents
-  docs/
-    SYSTEM_DESIGN.md           ← this file
-    PRINCIPLES.md              ← rules enforced in code
-  agents/
-    integration/               ← orchestration layer (Step 2)
-    rmd/                       ← RMD sub-agent (Step 1 complete)
-    roth/                      ← Roth conversion sub-agent (Step 2)
-    tlh/                       ← Tax loss harvesting sub-agent (Step 2)
-```
-
-One shared `pyproject.toml` — one `uv sync` installs everything. Each sub-agent has its own `Makefile`, fixtures, and package; it can be run and tested independently.
-
----
-
 ## Architecture
 
 ```
@@ -69,56 +50,37 @@ evaluate(auth_token: str, account_id: str, client_input: dict) -> dict
 
 Sub-agents are completely isolated — they do not call each other, share state, or import each other's code. Only the integration agent knows multiple sub-agents exist. Adding agent N requires zero changes to agents 1–N-1.
 
-The returned dict always contains all fields (guaranteed by `post_check`):
+Each sub-agent's input, output, and pipeline are documented in its own README.
 
-| Field | Type | Notes |
-|---|---|---|
-| `decision` | str enum | Python-controlled — never set by LLM |
-| `eligible` | bool or null | Core answer |
-| `reason` | str | Explains the decision |
-| `age` | int or null | For use in explanation |
-| `rmd_required_amount` | float or null | Dollar amount |
-| `withdrawal_amount_ytd` | float | What's been withdrawn so far |
-| `remaining_rmd` | float or null | What's left |
-| `withdrawal_status` | str enum | Current state |
-| `available_cash` | float or null | Cash available for withdrawal |
-| `cash_covers_remaining` | bool or null | Whether cash covers the remaining RMD |
-| `flags` | list[str] | Human-readable urgency signals for the advisor |
-| `client_name` | str or null | For personalizing the response |
-| `missing_fields` | list[str] | What to ask the advisor for |
-| `data_quality` | list[str] | Machine-readable provenance constants |
-| `completeness` | str | `full` / `partial` / `minimal` |
-| `inherited_rule` | str or null | `"10-year"` / `"stretch"` for inherited IRAs |
-
-Output contains exactly what the integration layer needs. Internal fields (`_source`, `input_echo`, `market_value`) are stripped by `post_check` before returning.
-
-### Sub-agent pipeline
+### Sub-agent pipeline (same pattern for all agents)
 
 ```
-Advisor input (free text or structured)
-        │
-        ▼
-  NL extraction   — LLM: parse fields only, no reasoning, no guessing
-        │
-        ▼
-  pre_check       — Python: block on missing required data
-        │
-        ▼
-  get_client_data — Python: fetch from ontology, merge with input
-        │
-        ▼
-  compute_*()     — Python: financial math, eligibility logic, decision
-        │
-        ▼
-  post_check      — Python: enforce schema, validate result
-        │
-        ▼
-  return dict     — all fields always present
+Advisor input
+      │
+      ▼
+NL extraction   — LLM: parse free text into structured fields
+      │
+      ▼
+pre_check       — Python: block on missing required data
+      │
+      ▼
+get_client_data — Python: fetch from ontology, merge with input
+      │
+      ▼
+compute_*()     — Python: financial math, eligibility logic, decision
+      │
+      ▼
+post_check      — Python: enforce schema, validate result
+      │
+      ▼
+return dict     — all fields always present
 ```
 
-No LLM in the sub-agent main path. Sub-agents are deterministic Python workers. The LLM lives at the integration layer, where it reasons across all sub-agent outputs and produces a single advisor-facing recommendation.
+No LLM in the sub-agent main path. The LLM lives at the integration layer, where it reasons across all sub-agent outputs.
 
-### Integration agent responsibilities (Step 2)
+### Integration agent responsibilities
+
+Details: [agents/integration/README.md](../agents/integration/README.md)
 
 1. **Route** — which sub-agents are relevant for this account
 2. **Orchestrate** — call relevant sub-agents in parallel
@@ -164,10 +126,10 @@ Step 3:  Agent N → Step 1 process → wire into swarm
 
 | Data | Impact |
 |---|---|
-| Dec 31 prior year balance — only latest available | RMD: advisor must provide; proxy flagged with `USING_LATEST_BALANCE_AS_PROXY` |
-| YTD withdrawal amount — no transaction history | RMD: must always come from advisor |
-| DOB missing for Pershing accounts | Advisor must provide for Pershing clients |
-| `account_type` wrong for some Schwab accounts | Agent can return wrong decision silently — always verify or override |
+| Dec 31 prior year balance — only latest available | Proxy used and flagged; advisor must provide exact value |
+| YTD withdrawal amount — no transaction history | Must always come from advisor |
+| DOB missing for Pershing accounts | Advisor must provide |
+| `account_type` wrong for some Schwab accounts | Agent can return wrong decision — always verify or override |
 | Inherited IRA beneficiary fields not stored | Auto-compute requires advisor input; fallback is `MANUAL_REVIEW` |
 | `federal_tax_bracket` not in ontology | Blocks Roth, TLH, and most planned agents |
 
@@ -201,7 +163,7 @@ Full details: [PRINCIPLES.md](PRINCIPLES.md)
 
 ## Design Notes
 
-**Why `decision` is Python-controlled:** `decision` drives the UI and conflict detector. If the LLM sets it, it may contradict the math, fall outside the valid enum, or be based on reasoning that diverges from the verified computation. Python sets `decision` from verified field values after `compute_rmd()` completes.
+**Why `decision` is Python-controlled:** `decision` drives the UI and conflict detector. If the LLM sets it, it may contradict the math, fall outside the valid enum, or be based on reasoning that diverges from the verified computation. Python sets `decision` from verified field values after `compute_*()` completes.
 
 **Why `pre_check` AND `post_check`:** A system prompt is a suggestion. A Python guard is deterministic — `post_check` runs after the agent and overrides any unsafe result regardless of what the model produced.
 

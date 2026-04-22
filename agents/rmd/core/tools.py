@@ -623,10 +623,19 @@ def compute_rmd(
     else:
         decision = "RMD_PENDING"
 
+    if decision == "RMD_COMPLETE":
+        reason = f"Age {age}, {account_type}. RMD of ${rmd_amount:,.2f} satisfied (${ytd:,.2f} withdrawn)."
+    elif decision == "TAKE_RMD_NOW":
+        reason = f"Age {age}, {account_type}. ${remaining:,.2f} remaining of ${rmd_amount:,.2f} RMD — fewer than 90 days left in {dist_year}."
+    elif decision == "RMD_IN_PROGRESS":
+        reason = f"Age {age}, {account_type}. ${ytd:,.2f} of ${rmd_amount:,.2f} RMD withdrawn — ${remaining:,.2f} remaining."
+    else:  # RMD_PENDING
+        reason = f"Age {age}, {account_type}. RMD of ${rmd_amount:,.2f} required — no withdrawals taken yet."
+
     return {
         "decision": decision,
         "eligible": True,
-        "reason": f"Client is age {age} and holds a {account_type}.",
+        "reason": reason,
         "age": age,
         "rmd_required_amount": rmd_amount,
         "withdrawal_amount_ytd": ytd,

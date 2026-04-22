@@ -182,27 +182,20 @@ No LLM in the main path. All logic is deterministic Python. LLM is used only in 
 
 ## Quick start
 
+See repo root README for setup (AWS login + `make token`). Then from the repo root:
+
 ```bash
-# Install dependencies — run once from repo root
-cd /path/to/financial-planning
-uv sync
+# Run all tests
+make test-all
 
-# Set API key
-export ANTHROPIC_API_KEY=sk-ant-...
+# Manual input — no AWS needed
+make run-manual-rmd DOB=1950-03-15 TYPE="Traditional IRA" BALANCE=320000 YTD=10000
 
-# Run all test fixtures (no AWS needed)
-cd agents/rmd
-make test
+# Free-text input — requires AWS
+make run-nl-rmd TEXT="John Smith, DOB March 15 1950, Traditional IRA, balance 320k, took out 10k"
 
-# Run with manual input (no AWS needed)
-make run-manual DOB=1950-03-15 TYPE="Traditional IRA" BALANCE=320000 YTD=10000
-
-# Run with free-text input (no AWS needed)
-make run-nl TEXT="John Smith, DOB March 15 1950, Traditional IRA, balance 320k, took out 10k"
-
-# Run against a real account (requires AWS SSO)
-aws sso login --profile data-lake-dev
-make run ACCOUNT_ID=38279295 BALANCE=178399
+# Live account — requires AWS + token
+make run-rmd ACCOUNT_ID=38279295 BALANCE=178399
 ```
 
 ---

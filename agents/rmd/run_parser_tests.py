@@ -15,7 +15,9 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from pathlib import Path
+from statistics import mean, quantiles
 
 PROMPTS_DIR = Path(__file__).parent / "prompts"
 
@@ -76,8 +78,8 @@ def _check_field(errors: list, field: str, expected, actual_dict: dict) -> None:
             errors.append(f"{field}: expected {expected!r}, got {actual!r}")
 
 
-def run_nl_fixture(path: Path, tracer=None) -> bool:
-    """Run a single NL parser fixture. Returns True if passed."""
+def run_nl_fixture(path: Path, tracer=None, measure_latency: bool = False) -> tuple[bool, float]:
+    """Run a single NL parser fixture. Returns (passed, latency_s)."""
     fixture = json.loads(path.read_text())
     fid = fixture["id"]
     desc = fixture["description"]
@@ -86,6 +88,7 @@ def run_nl_fixture(path: Path, tracer=None) -> bool:
 
     from agents.rmd.core.parser import parse
 
+    t0 = time.monotonic()
     if tracer:
         with tracer.start_as_current_span(f"nl-parse:{fid}") as span:
             span.set_attribute("fixture.id", fid)
@@ -94,6 +97,7 @@ def run_nl_fixture(path: Path, tracer=None) -> bool:
             span.set_attribute("parser.output", json.dumps(result))
     else:
         result = parse(text)
+    latency_s = time.monotonic() - t0
 
     errors = []
     for field, expected in expected_fields.items():
@@ -101,19 +105,40 @@ def run_nl_fixture(path: Path, tracer=None) -> bool:
 
     passed = not errors
     status = PASS if passed else FAIL
-    print(f"  {status}  [{fid}] {desc}")
+    latency_str = f"  {latency_s:.2f}s" if measure_latency else ""
+    print(f"  {status}  [{fid}] {desc}{latency_str}")
     for e in errors:
         print(f"         {e}")
     if not errors:
-        # Show extracted fields for visibility
         print(f"         extracted: {json.dumps(result, ensure_ascii=False)}")
 
-    return passed
+    return passed, latency_s
+
+
+def _print_latency_report(latencies: list[float]) -> None:
+    if not latencies:
+        return
+    qs = quantiles(latencies, n=100)
+    print(f"\n--- Latency report ({len(latencies)} fixtures) ---")
+    print(f"  min    {min(latencies):.2f}s")
+    print(f"  p50    {qs[49]:.2f}s")
+    print(f"  p75    {qs[74]:.2f}s")
+    print(f"  p95    {qs[94]:.2f}s")
+    print(f"  max    {max(latencies):.2f}s")
+    print(f"  mean   {mean(latencies):.2f}s")
+
+    p95 = qs[94]
+    threshold = 30.0
+    if p95 > threshold:
+        print(f"\n  \033[91mWARN\033[0m  p95 {p95:.2f}s exceeds threshold {threshold}s")
+    else:
+        print(f"\n  \033[92mOK\033[0m    p95 {p95:.2f}s within threshold {threshold}s")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--trace", action="store_true", help="Send traces to Phoenix ontology-eval project")
+    parser.add_argument("--latency", action="store_true", help="Show per-fixture latency and p95 report")
     args = parser.parse_args()
 
     tracer = None
@@ -128,11 +153,15 @@ def main() -> None:
         sys.exit(1)
 
     print(f"\nRunning {len(fixtures)} NL parser fixtures\n")
-    results = [run_nl_fixture(f, tracer=tracer) for f in fixtures]
+    results = [run_nl_fixture(f, tracer=tracer, measure_latency=args.latency) for f in fixtures]
 
-    passed = sum(results)
+    passed = sum(r[0] for r in results)
+    latencies = [r[1] for r in results]
     total = len(results)
     print(f"\n{passed}/{total} passed")
+
+    if args.latency:
+        _print_latency_report(latencies)
 
     if passed < total:
         sys.exit(1)

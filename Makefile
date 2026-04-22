@@ -1,5 +1,5 @@
 .PHONY: test test-latency test-trace lint \
-        test-parser test-parser-trace \
+        test-parser test-parser-latency test-parser-trace \
         test-real test-all \
         run-rmd run-manual-rmd run-nl-rmd token
 
@@ -22,8 +22,11 @@ test-trace:
 test-parser:
 	AWS_PROFILE=data-lake-dev uv run python agents/rmd/run_parser_tests.py
 
+test-parser-latency:
+	AWS_PROFILE=data-lake-dev uv run python agents/rmd/run_parser_tests.py --latency
+
 test-parser-trace:
-	AWS_PROFILE=data-lake-dev uv run python agents/rmd/run_parser_tests.py --trace
+	AWS_PROFILE=data-lake-dev uv run python agents/rmd/run_parser_tests.py --trace --latency
 
 test-real:
 	AWS_PROFILE=data-lake-dev uv run python agents/rmd/run_real_tests.py
