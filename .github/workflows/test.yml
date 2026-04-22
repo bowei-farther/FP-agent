@@ -22,18 +22,13 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
-      # Run 3 times from repo root — imports resolve as agents.rmd.core (P14)
+      # Sub-agent is pure Python — no LLM, no AWS credentials needed (P15, Task 13)
+      # Run 3 times for stability check (P14)
       - name: Run fixtures (run 1 of 3)
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: uv run python agents/rmd/run_tests.py
 
       - name: Run fixtures (run 2 of 3)
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: uv run python agents/rmd/run_tests.py
 
       - name: Run fixtures (run 3 of 3) + latency report
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: uv run python agents/rmd/run_tests.py --latency

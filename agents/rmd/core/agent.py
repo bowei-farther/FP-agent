@@ -1,104 +1,23 @@
-"""RMD Eligibility sub-agent (Strands Agents SDK).
+"""RMD sub-agent — deterministic Python pipeline (P15).
 
-Pipeline: get_client_data → compute_rmd → format result
-          pre_check (Python) wraps the agent for safety
-          post_check (Python) validates the result before returning
+No LLM in the main path. Pipeline:
+    pre_check → get_client_data → compute_rmd → post_check
+
+LLM lives at the integration layer only (Step 2).
 """
 
 from __future__ import annotations
 
-import json
 import logging
-import os
-import re
-from pathlib import Path
-
-from strands import Agent
-from strands.models.bedrock import BedrockModel
 
 from .rules import OUTPUT_SCHEMA, post_check, pre_check
-from .tools import DISTRIBUTION_YEAR, build_tools
+from .tools import DISTRIBUTION_YEAR, compute_rmd, get_client_data
 
 logger = logging.getLogger(__name__)
 
-_PROMPT_FILE = Path(__file__).parent / "prompts" / "system_prompt.md"
-SYSTEM_PROMPT = _PROMPT_FILE.read_text().replace("{distribution_year}", str(DISTRIBUTION_YEAR))
-
-
-def _model() -> BedrockModel:
-    return BedrockModel(
-        model_id="us.anthropic.claude-haiku-4-5-20251001-v1:0",
-        max_tokens=1024,
-        temperature=0,
-    )
-
-
-def _parse_json(raw: str) -> dict | None:
-    """Extract and parse the first JSON object from a string.
-
-    Handles optional markdown code fences (```json ... ```).
-    Returns None if no valid JSON object is found.
-    """
-    # Strip markdown code fences if present
-    raw = re.sub(r"^```(?:json)?\s*", "", raw.strip())
-    raw = re.sub(r"\s*```$", "", raw)
-
-    start = raw.find("{")
-    end = raw.rfind("}")
-    if start == -1 or end == -1:
-        return None
-    try:
-        return json.loads(raw[start:end + 1])
-    except (json.JSONDecodeError, ValueError):
-        return None
-
-
-def run_rmd_agent(auth_token: str, account_id: str, client_input: dict) -> dict:
-    """Build and invoke the Strands agent. Returns raw result dict.
-
-    Retries JSON extraction up to 3 times on parse failure (Task 5).
-    Returns an ERROR result dict if all attempts fail.
-    """
-    get_client_data, compute_rmd = build_tools(auth_token, account_id, client_input)
-
-    agent = Agent(
-        model=_model(),
-        tools=[get_client_data, compute_rmd],
-        system_prompt=SYSTEM_PROMPT,
-        callback_handler=None,
-    )
-
-    prompt = (
-        f"Retrieve the client data for account {account_id} "
-        f"and compute their RMD status for {DISTRIBUTION_YEAR}."
-    )
-
-    last_raw = ""
-    for attempt in range(1, 4):
-        try:
-            result = agent(prompt)
-            raw = str(result).strip()
-            parsed = _parse_json(raw)
-            if parsed is not None:
-                return parsed
-            last_raw = raw
-            logger.warning("[rmd_agent] parse attempt %d failed — retrying. Output: %.200s", attempt, raw)
-        except Exception as exc:
-            logger.warning("[rmd_agent] agent call attempt %d raised %s: %s", attempt, type(exc).__name__, exc)
-            last_raw = str(exc)
-
-    return {
-        **OUTPUT_SCHEMA,
-        "decision": "ERROR",
-        "reason": f"Agent returned unparseable output after 3 attempts.",
-        "flags": ["Agent output could not be parsed — manual review required."],
-        "_source": "agent:parse_error",
-        "input_echo": {"last_raw": last_raw[:500]},
-    }
-
 
 def evaluate(auth_token: str, account_id: str, client_input: dict | None = None) -> dict:
-    """Full RMD pipeline: pre_check → agent → post_check.
+    """Full RMD pipeline: pre_check → get_client_data → compute_rmd → post_check.
 
     Args:
         auth_token: Farther API auth token.
@@ -110,16 +29,46 @@ def evaluate(auth_token: str, account_id: str, client_input: dict | None = None)
     """
     client_input = client_input or {}
 
-    # Pre-check: only runs when no DB lookup is possible (manual input path)
+    # Pre-check: only runs on manual-input path (no DB lookup possible)
     if not account_id or account_id == "manual-input":
         early_exit = pre_check(client_input)
         if early_exit:
             return early_exit
 
-    raw = run_rmd_agent(auth_token, account_id, client_input)
+    # Step 1: fetch and merge client data (pure Python, no LLM)
+    data = get_client_data(auth_token, account_id, client_input)
 
-    # Agent signalled INSUFFICIENT_DATA — surface it with full schema
-    if raw.get("decision") == "INSUFFICIENT_DATA":
-        return {**OUTPUT_SCHEMA, **raw, "_source": raw.get("_source", "agent:insufficient_data")}
+    # Missing required fields — surface as INSUFFICIENT_DATA
+    if data.get("_missing"):
+        return {
+            **OUTPUT_SCHEMA,
+            "decision": "INSUFFICIENT_DATA",
+            "missing_fields": data["_missing"],
+            "reason": f"I need one piece of information to continue: {data['_missing'][0]}.",
+            "data_quality": data.get("data_quality", []),
+            "client_name": data.get("client_name"),
+            "advisor_name": data.get("advisor_name"),
+            "_source": "pre_check:missing_fields",
+            "completeness": "minimal",
+        }
 
-    return post_check(raw)
+    # Step 2: compute RMD (pure Python, no LLM)
+    result = compute_rmd(
+        date_of_birth=data["date_of_birth"],
+        account_type=data["account_type"],
+        prior_year_end_balance=data["prior_year_end_balance"],
+        withdrawal_amount_ytd=data.get("withdrawal_amount_ytd") or 0.0,
+        market_value=data.get("market_value"),
+        available_cash=data.get("available_cash"),
+    )
+
+    # Merge data provenance into result
+    result["data_quality"] = data.get("data_quality", [])
+    result["client_name"] = data.get("client_name")
+    result["advisor_name"] = data.get("advisor_name")
+    result["account_id"] = account_id
+    if "_source" not in result or result.get("_source") is None:
+        result["_source"] = data.get("_source", "unknown")
+
+    # Step 3: enforce output schema and coherence guards
+    return post_check(result)
