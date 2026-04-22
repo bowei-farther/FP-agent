@@ -23,6 +23,11 @@ run-manual:
 		--balance $(BALANCE) \
 		--ytd $(YTD)
 
+# Run with free-text advisor input — parsed by LLM before evaluate()
+# Usage: make run-nl TEXT="John Smith, DOB March 15 1950, Traditional IRA, balance 320k, took out 10k"
+run-nl:
+	uv run --project $(REPO_ROOT) python agent.py --nl "$(TEXT)"
+
 # Run all test fixtures — no AWS or database needed
 test:
 	uv run --project $(REPO_ROOT) python run_tests.py 2>/dev/null
