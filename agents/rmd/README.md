@@ -1,6 +1,6 @@
 # RMD Eligibility Agent
 
-> Status: Step 1 in progress
+> Status: Step 1 complete — pending Bedrock swap
 > Location: `agents/rmd/`
 
 Evaluates whether a client account has a Required Minimum Distribution obligation for 2026.
@@ -136,6 +136,7 @@ Every output always contains all fields. Missing fields are `null` or `[]` — n
 | `DOB_FROM_DB` | Date of birth fetched from ontology |
 | `DOB_FROM_INPUT` | Date of birth provided by advisor |
 | `ACCOUNT_TYPE_FROM_DB` | Account type fetched from ontology |
+| `ACCOUNT_TYPE_FROM_INPUT` | Account type provided by advisor |
 
 ### completeness rule
 
@@ -188,7 +189,10 @@ make test
 # 4. Run with manual input (no AWS needed)
 make run-manual DOB=1950-03-15 TYPE="Traditional IRA" BALANCE=320000 YTD=10000
 
-# 5. Run against a real account (requires AWS SSO)
+# 5. Run with free-text advisor input (no AWS needed)
+make run-nl TEXT="John Smith, DOB March 15 1950, Traditional IRA, balance 320k, took out 10k"
+
+# 6. Run against a real account (requires AWS SSO)
 aws sso login --profile data-lake-dev
 make run ACCOUNT_ID=38279295 BALANCE=178399
 ```
@@ -232,7 +236,6 @@ One shared environment at the repo root (`financial-planning/.venv/`). Steps 1�
 | YTD withdrawals require advisor input | No transaction history in ontology | Defaults to 0, flagged with `USER_PROVIDED_WITHDRAWAL_YTD` |
 | DOB missing for Pershing accounts | Advisor must provide DOB for Pershing clients | Resolved when people data lands in ontology |
 | Inherited IRA always manual review | Cannot evaluate 10-year rule automatically | No automated source for beneficiary death date |
-| NL input layer not yet built | Free-text advisor input not yet parsed | Step 1 Task 8 |
 
 ---
 
@@ -240,18 +243,15 @@ One shared environment at the repo root (`financial-planning/.venv/`). Steps 1�
 
 Before this agent connects to the integration agent:
 
-- [ ] `make test` → 13/13 pass
+- [x] `make test` → 18/18 pass
 - [x] `decision` enum on every output — uppercase, Python-controlled
 - [x] All schema keys always present — `OUTPUT_SCHEMA` merge in `post_check`
 - [x] `data_quality[]` and `completeness` on every output
 - [x] `input_echo` on every output
 - [x] JSON parse retry — 3-attempt loop with fence stripping
-<<<<<<< Updated upstream
-- [ ] NL layer: 5 advisor phrasings → correct `evaluate()` call
-- [ ] CI gate blocking on fixture failures
+- [x] NL layer — `parser.py` free-text → structured `client_input`
+- [x] CI gate blocking on fixture failures
 - [ ] Bedrock swap verified
-=======
 - [x] NL layer — `parser.py` free-text → structured `client_input`
 - [x] CI gate blocking on fixture failures
 - [ ] Bedrock swap — moved to Step 2 (Task 2L)
->>>>>>> Stashed changes
