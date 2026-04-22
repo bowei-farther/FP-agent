@@ -209,7 +209,7 @@ One shared environment at the repo root (`financial-planning/.venv/`). Steps 1�
 |---|---|
 | 01 | Age 76, Traditional IRA — not started |
 | 02 | Age 80, Traditional IRA — in progress |
-| 03 | Age 74, Traditional IRA — completed |
+| 03 | Age 75, Traditional IRA — completed (ytd exceeds RMD) |
 | 04 | Roth IRA — never subject to RMDs → `NO_ACTION` |
 | 05 | Age 65 — under 73, not yet eligible → `NO_ACTION` |
 | 06 | Missing DOB and balance — ask back → `INSUFFICIENT_DATA` |
@@ -252,3 +252,6 @@ Before this agent connects to the integration agent:
 - [x] NL layer — `parser.py` free-text → structured `client_input`
 - [x] CI gate blocking on fixture failures
 - [ ] Bedrock swap verified
+- [x] NL layer — `parser.py` free-text → structured `client_input`
+- [x] CI gate blocking on fixture failures
+- [ ] Bedrock swap — moved to Step 2 (Task 2L)

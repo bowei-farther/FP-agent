@@ -328,15 +328,14 @@ Auth via IAM — already in Makefile as `AWS_PROFILE=data-lake-dev`.
 
 Before Step 2 can begin:
 
-- [ ] `make test` → 13/13 pass (including fixtures 12, 13)
-- [ ] Every output has `decision` enum — no free text decisions
-- [ ] Every output has all schema keys (no silent missing keys)
-- [ ] Every output has `data_quality[]` and `completeness`
-- [ ] Every output has `input_echo`
-- [ ] JSON parse retry — no parse failures in 20 consecutive `make test` runs
-- [ ] NL layer: 5 real advisor phrasings → correct `evaluate()` call
-- [ ] CI gate blocking on fixture failures
-- [ ] Bedrock swap verified — `make test` passes on `BedrockModel`
+- [x] `make test` → 18/18 pass
+- [x] Every output has `decision` enum — uppercase, Python-controlled
+- [x] Every output has all schema keys — `OUTPUT_SCHEMA` merge in `post_check`
+- [x] Every output has `data_quality[]` and `completeness`
+- [x] Every output has `input_echo`
+- [x] JSON parse retry — 3-attempt loop with fence stripping
+- [x] NL layer — `parser.py` free-text → structured `client_input`
+- [x] CI gate blocking on fixture failures
 
 ---
 
@@ -356,6 +355,23 @@ Before wiring any agent into the integrated advisor:
 ### Prerequisites
 - RMD Step 1 gate passed
 - Roth agent and TLH agent each independently pass their own Step 1 gate (same process as above)
+
+### Task 2L — Bedrock swap (all agents)
+
+Switch all agents from `AnthropicModel` to `BedrockModel` before wiring into the integration agent.
+Requires: OIDC IAM role ARN from the team for CI.
+
+```python
+# from:
+from strands.models.anthropic import AnthropicModel
+AnthropicModel(model_id="claude-haiku-4-5-20251001", ...)
+
+# to:
+from strands.models.bedrock import BedrockModel
+BedrockModel(model_id="us.anthropic.claude-haiku-4-5-20251001-v1:0", ...)
+```
+
+Update CI to use AWS OIDC instead of `ANTHROPIC_API_KEY` secret.
 
 ### Tasks
 

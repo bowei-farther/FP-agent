@@ -37,7 +37,11 @@ OUTPUT_SCHEMA: dict = {
 
 # Fields that, when present in data_quality[], indicate imperfect provenance.
 # Used by post_check to downgrade completeness from "full".
-_DQ_IMPERFECT = frozenset({"USING_LATEST_BALANCE_AS_PROXY"})
+_DQ_IMPERFECT = frozenset({
+    "USING_LATEST_BALANCE_AS_PROXY",  # latest balance used instead of Dec 31 snapshot
+    "USER_PROVIDED_BALANCE",           # advisor provided balance — not from ontology
+    "USER_PROVIDED_WITHDRAWAL_YTD",    # advisor provided YTD — no transaction history in ontology
+})
 
 REQUIRED_FIELDS = ["date_of_birth", "account_type", "prior_year_end_balance"]
 
