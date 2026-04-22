@@ -48,7 +48,6 @@ def evaluate(auth_token: str, account_id: str, client_input: dict | None = None,
             "reason": f"Multiple accounts matched account_id '{account_id}'. Advisor must specify a unique account identifier.",
             "data_quality": data.get("data_quality", []),
             "client_name": data.get("client_name"),
-            "advisor_name": data.get("advisor_name"),
             "_source": "ambiguous",
             "completeness": "minimal",
         }
@@ -62,7 +61,6 @@ def evaluate(auth_token: str, account_id: str, client_input: dict | None = None,
             "reason": f"I need one piece of information to continue: {data['_missing'][0]}.",
             "data_quality": data.get("data_quality", []),
             "client_name": data.get("client_name"),
-            "advisor_name": data.get("advisor_name"),
             "_source": "pre_check:missing_fields",
             "completeness": "minimal",
         }
@@ -85,7 +83,6 @@ def evaluate(auth_token: str, account_id: str, client_input: dict | None = None,
     # Merge data provenance into result
     result["data_quality"] = data.get("data_quality", [])
     result["client_name"] = data.get("client_name")
-    result["advisor_name"] = data.get("advisor_name")
     result["account_id"] = account_id
     if "_source" not in result or result.get("_source") is None:
         result["_source"] = data.get("_source", "unknown")

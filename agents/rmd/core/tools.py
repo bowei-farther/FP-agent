@@ -219,7 +219,7 @@ def _compute_inherited_rmd(
             "market_value": float(market_value) if market_value is not None else None,
             "cash_covers_remaining": (cash >= remaining) if cash is not None and remaining > 0 else None,
             "flags": [f"Inherited IRA ({rule}). Factor {factor:.1f} based on beneficiary age {age_in_lookup_year} at first distribution year."],
-            "_inherited_rule": "stretch",
+            "inherited_rule": "stretch",
         }
 
     # --- Non-spouse post-SECURE: 10-year rule ---
@@ -252,7 +252,7 @@ def _compute_inherited_rmd(
             "market_value": float(market_value) if market_value is not None else None,
             "cash_covers_remaining": (cash >= remaining) if cash is not None and remaining > 0 else None,
             "flags": flags,
-            "_inherited_rule": "10-year",
+            "inherited_rule": "10-year",
         }
     else:
         # No annual RMD required — just track deadline
@@ -273,7 +273,7 @@ def _compute_inherited_rmd(
         "market_value": float(market_value) if market_value is not None else None,
         "cash_covers_remaining": None,
         "flags": flags,
-        "_inherited_rule": "10-year",
+        "inherited_rule": "10-year",
     }
 
 
@@ -300,7 +300,7 @@ def _fetch_object(auth_token: str, account_id: str) -> dict:
     fields = [
         "account_type", "date_of_birth",
         "farther_virtual_account_id", "id_object",
-        "first_name", "last_name", "manager",
+        "first_name", "last_name",
     ]
     for filter_key in ("farther_virtual_account_id", "custodian_account_id"):
         try:
@@ -374,7 +374,6 @@ def get_client_data(auth_token: str, account_id: str, client_input: dict) -> dic
     data: dict[str, Any] = {
         "account_id":             account_id,
         "client_name":            client_input.get("client_name"),
-        "advisor_name":           client_input.get("advisor_name"),
         "account_type":           client_input.get("account_type"),
         "date_of_birth":          client_input.get("date_of_birth"),
         "prior_year_end_balance": client_input.get("prior_year_end_balance"),
@@ -422,8 +421,6 @@ def get_client_data(auth_token: str, account_id: str, client_input: dict) -> dic
                 last = obj.get("last_name", "")
                 full = f"{first} {last}".strip()
                 data["client_name"] = full if full else None
-            if data["advisor_name"] is None:
-                data["advisor_name"] = obj.get("manager")
 
             id_object = obj.get("id_object")
             if id_object:

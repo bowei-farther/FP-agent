@@ -156,6 +156,26 @@ When adding a new agent, verify each principle is upheld before connecting it to
 
 ---
 
+## P16 — Input and output cover what is needed, nothing more
+
+**Rule:** Every layer — input to sub-agent, output from sub-agent, input to integration — contains exactly the fields needed by the next layer. No internal fields, debug tags, or convenience data bleed across boundaries.
+
+**Why:** Extra fields create implicit coupling. If the integration agent starts depending on `_source` or `input_echo`, it breaks when those fields are removed or renamed. Each layer should only receive what it acts on — this keeps boundaries clean, makes contracts auditable, and prevents internal implementation details from becoming public API.
+
+**Enforced by:** `post_check` strips internal fields (`_source`, `input_echo`, `market_value`, `advisor_name`) before returning. Output schema is defined explicitly — new fields require a deliberate decision, not accidental inclusion.
+
+---
+
+## P17 — Financial rounding uses ROUND_HALF_UP
+
+**Rule:** All monetary rounding uses `ROUND_HALF_UP` (standard financial rounding). Never use Python's built-in `round()`, which applies banker's rounding (round half to even).
+
+**Why:** Python's `round(16240.835, 2)` returns `16240.83`. The IRS and custodians compute `16240.84`. A $0.01 discrepancy per account, multiplied across thousands of accounts and years, causes real reconciliation failures. Financial systems must match the rounding convention of the authoritative source.
+
+**Enforced by:** `_round2()` helper in `tools.py` uses `Decimal.quantize(ROUND_HALF_UP)`. All monetary calculations in `compute_rmd()` and `_compute_inherited_rmd()` route through `_round2()`. Raw `round()` is never used on dollar amounts.
+
+---
+
 ## Summary
 
 | Principle | What it prevents |
@@ -175,3 +195,5 @@ When adding a new agent, verify each principle is upheld before connecting it to
 | P13 — Observe before you ship | Passing fixture masking wrong tool call arguments |
 | P14 — Prove stability before integration | Flaky agent poisoning integrated results |
 | P15 — Dumb workers, smart coordinator | LLM inside sub-agents paying latency for work Python can do deterministically |
+| P16 — Needed but no more | Internal fields bleeding into public contracts, creating hidden coupling |
+| P17 — ROUND_HALF_UP for money | $0.01 rounding divergence from IRS/custodian calculations |

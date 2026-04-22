@@ -1,6 +1,6 @@
 # Financial Planning Agent System — System Design
 
-> Last updated: 2026-04-22
+> Last updated: 2026-04-22 (Step 1 complete)
 
 ---
 
@@ -123,27 +123,27 @@ evaluate(auth_token: str, account_id: str, client_input: dict) -> dict
 
 The returned dict always contains (guaranteed by `post_check`). Full schema defined in [PLAN.md](../PLAN.md#output-schema-every-field-always-present).
 
-| Field | Type | Status | Description |
-|---|---|---|---|
-| `eligible` | bool or None | Built | Whether the strategy applies |
-| `reason` | str | Built | Human-readable eligibility explanation |
-| `age` | int or None | Built | Client age as of Dec 31 of distribution year |
-| `rmd_required_amount` | float or None | Built | Total required withdrawal |
-| `withdrawal_amount_ytd` | float | Built | Withdrawals taken so far this year |
-| `remaining_rmd` | float or None | Built | Amount still owed |
-| `withdrawal_status` | str enum | Built | `Not Started` / `In Progress` / `Completed` / `Not Applicable` |
-| `available_cash` | float or None | Built | Cash available for withdrawal |
-| `market_value` | float or None | Built | Current portfolio value |
-| `cash_covers_remaining` | bool or None | Built | Whether cash covers remaining RMD |
-| `flags` | list[str] | Built | Advisor-facing warnings (P7) |
-| `client_name` | str or None | Built | Resolved from ontology or input |
-| `advisor_name` | str or None | Built | Resolved from ontology or input |
-| `_source` | str | Built | Where the data came from (P4) |
-| `decision` | str enum | Built | Machine-readable action enum — set by Python, never LLM (P10) |
-| `missing_fields` | list[str] | Built | Fields that could not be resolved |
-| `data_quality` | list[str] | Built | System-facing named provenance constants (P7) |
-| `completeness` | str | Built | `full` / `partial` / `minimal` (P4) |
-| `input_echo` | dict | Built | Exact field values used in the calculation (P4) |
+| Field | Type | Purpose for reasoning layer |
+|---|---|---|
+| `decision` | str enum | Primary routing signal — Python-controlled, never LLM (P10) |
+| `eligible` | bool or null | Core answer |
+| `reason` | str | Explain the decision |
+| `age` | int or null | "At age 87, factor is 14.4..." |
+| `rmd_required_amount` | float or null | Dollar amount to cite |
+| `withdrawal_amount_ytd` | float | What's been done so far |
+| `remaining_rmd` | float or null | What's left to act on |
+| `withdrawal_status` | str enum | State to explain |
+| `available_cash` | float or null | "You have $X available" |
+| `cash_covers_remaining` | bool or null | Cash covers / doesn't cover remaining |
+| `flags` | list[str] | Urgency signals to communicate (P7) |
+| `client_name` | str or null | Personalize the response |
+| `missing_fields` | list[str] | What to ask the advisor for |
+| `data_quality` | list[str] | Confidence of explanation — advisor-provided vs DB (P7) |
+| `completeness` | str | How confident to sound (`full` / `partial` / `minimal`) |
+| `inherited_rule` | str or null | `"10-year"` / `"stretch"` — which inherited IRA rule applies |
+
+**P16 — input and output cover what is needed, nothing more:** fields contain exactly what the reasoning layer needs.
+Internal fields (`_source`, `input_echo`, `market_value`, `advisor_name`) are stripped by `post_check`.
 
 The integration agent receives this contract and nothing else.
 
@@ -249,8 +249,11 @@ One data source. No Athena, no CRM, no mixing.
 | Data | Why missing | Impact |
 |---|---|---|
 | Dec 31 prior year balance | Only latest balance — no point-in-time snapshot | RMD: advisor must provide; proxy used with warning flag |
-| YTD withdrawal amount | No transaction history | RMD: advisor must provide |
-| DOB for Pershing accounts | People data not yet in ontology | RMD: advisor must provide DOB for Pershing accounts |
+| YTD withdrawal amount | No transaction history | RMD: must always come from advisor |
+| `manager` (advisor name) | Never populated | Removed from output entirely |
+| DOB for Pershing accounts | People data not yet in ontology | RMD: advisor must provide for Pershing clients |
+| `account_type` accuracy | Wrong for some Schwab accounts (e.g. Rollover IRA stored as Roth IRA) | Critical: agent returns wrong decision silently — always verify or override |
+| Inherited IRA beneficiary fields | Death date, relationship not stored | Inherited IRA auto-compute requires advisor input; fallback is `MANUAL_REVIEW` |
 | Marginal tax rate | Not in ontology | Blocks Roth, TLH, and 9 of 13 planned agents |
 | Lot-level cost basis / purchase date | Not in ontology | Blocks full TLH, Holding Period, Step-Up agents |
 
@@ -274,6 +277,10 @@ One data source. No Athena, no CRM, no mixing.
 | P10 | Decision enum is Python-controlled — never written by LLM |
 | P11 | Ask one field at a time — priority order, never multiple at once |
 | P12 | Identity resolution before compute — never proceed on ambiguous match |
+| P13 | Observe before you ship — Phoenix traces required before Step 1 gate |
+| P14 | Prove stability before integration — 3-run stability + latency baseline required |
+| P15 | Dumb workers, smart coordinator — no LLM in sub-agent main path |
+| P16 | Input and output cover what is needed, nothing more — no internal fields in public contracts |
 
 ---
 

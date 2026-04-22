@@ -28,31 +28,42 @@ Given a client account, the agent determines:
 
 - Execute withdrawals
 - Compute tax withholding on the distribution
-- Handle Inherited IRA rules (10-year rule, Life Expectancy method)
 - Provide Dec 31 prior year balance automatically — ontology provides latest balance only
 
 ---
 
 ## Input
 
-| Field | Source | Required |
-|---|---|---|
-| `date_of_birth` | Ontology `date_of_birth` (object) or advisor input | Yes |
-| `account_type` | Ontology `account_type` (object) | Yes (auto-fetched) |
-| `prior_year_end_balance` | Advisor input (Dec 31 snapshot not in ontology) | Yes |
-| `withdrawal_amount_ytd` | Advisor input (no transaction history in ontology) | No — defaults to 0 |
+```python
+evaluate(auth_token, account_id, client_input)
+```
 
-**Ontology fields fetched automatically:**
+| Field | Source | Required | Notes |
+|---|---|---|---|
+| `account_id` | caller | yes | 8-digit custodian ID or `"manual-input"` |
+| `client_input.prior_year_end_balance` | advisor | yes | Dec 31 snapshot not in ontology |
+| `client_input.withdrawal_amount_ytd` | advisor | no | defaults to 0 — no transaction history in ontology |
+| `client_input.date_of_birth` | advisor | only if not in ontology | overrides DB |
+| `client_input.account_type` | advisor | only if not in ontology | overrides DB |
+| `client_input.beneficiary_dob` | advisor | inherited IRA only | enables auto-compute |
+| `client_input.owner_death_date` | advisor | inherited IRA only | enables auto-compute |
+| `client_input.is_spouse_beneficiary` | advisor | inherited IRA only | default `false` |
 
-| Ontology field | Daily ID | Used as |
-|---|---|---|
-| `account_balance` | 277 | `prior_year_end_balance` proxy (flagged if used) |
-| `account_available_cash` | 1301 | Cash coverage check |
-| `account_settled_cash` | 1302 | Supplemental cash info |
-| `account_sweep_balance` | 1436 | Supplemental cash info |
-| `account_market_value` | 1303 | Portfolio value (informational) |
+**Auto-fetched from ontology (no client_input needed):**
 
-**Note:** DOB for Pershing accounts is not yet in the ontology. Advisor must provide for Pershing clients.
+| Ontology field | Used as |
+|---|---|
+| `date_of_birth` | age calculation |
+| `account_type` | eligibility branch |
+| `first_name`, `last_name` | `client_name` in output |
+| `account_balance` (daily) | `prior_year_end_balance` proxy — flagged if used |
+| `account_available_cash` (daily) | cash coverage check |
+
+**Known ontology gaps:**
+- `manager` (advisor name) — always null, not in output
+- `date_of_birth` — null for Pershing accounts, must be provided in `client_input`
+- `account_type` — incorrect for some Schwab accounts (e.g. shows Roth IRA when actually Rollover IRA) — always verify or override via `client_input`
+- `withdrawal_amount_ytd` — not in ontology, must always come from advisor
 
 ---
 
@@ -71,47 +82,39 @@ Every output always contains all fields. Missing fields are `null` or `[]` — n
   "remaining_rmd": 7511.74,
   "withdrawal_status": "Not Started",
   "available_cash": 3200.00,
-  "market_value": 174100.00,
   "cash_covers_remaining": false,
   "flags": ["RMD not started with fewer than 6 months remaining in 2026."],
+  "client_name": "John Smith",
+  "missing_fields": [],
   "data_quality": ["USING_LATEST_BALANCE_AS_PROXY", "DOB_FROM_DB"],
   "completeness": "partial",
-  "input_echo": {
-    "date_of_birth": "1950-03-15",
-    "account_type": "Traditional IRA",
-    "prior_year_end_balance": 178000.0,
-    "withdrawal_amount_ytd": 0.0
-  },
-  "client_name": "John Smith",
-  "advisor_name": "Jane Doe",
-  "missing_fields": [],
-  "_source": "api"
+  "inherited_rule": null
 }
 ```
 
+**Design principle — no more, no less:**
+Output contains exactly what the reasoning layer (LLM at integration) needs to explain and act on the result. Internal fields (`_source`, `input_echo`, `market_value`) are stripped by `post_check`.
+
 ### Field reference
 
-| Field | Type | Description |
+| Field | Type | For reasoning layer |
 |---|---|---|
-| `decision` | str enum | Machine-readable action — Python-controlled, never LLM |
-| `eligible` | bool or null | Whether RMD rules apply to this account |
-| `reason` | str | Human-readable explanation |
-| `age` | int | Client age as of Dec 31, 2026 |
-| `rmd_required_amount` | float or null | Required distribution for 2026 |
-| `withdrawal_amount_ytd` | float | Year-to-date withdrawals taken |
-| `remaining_rmd` | float or null | `rmd_required_amount - withdrawal_amount_ytd` |
-| `withdrawal_status` | str | `Not Started` / `In Progress` / `Completed` / `Not Applicable` / `Manual Review Required` |
-| `available_cash` | float or null | Uninvested cash from ontology |
-| `market_value` | float or null | Positions value from ontology (informational) |
-| `cash_covers_remaining` | bool or null | Whether cash covers remaining RMD |
-| `flags` | list[str] | Advisor-facing warnings (deadline risk, cash shortfall) |
-| `data_quality` | list[str] | System-facing provenance flags (named constants) |
-| `completeness` | str | `full` / `partial` / `minimal` |
-| `input_echo` | dict | Exact field values used in the calculation |
-| `client_name` | str or null | From ontology |
-| `advisor_name` | str or null | From ontology |
-| `missing_fields` | list[str] | Fields that could not be resolved |
-| `_source` | str | Where data came from (`input`, `api`, `input+api`, `pre_check`, `post_check`) |
+| `decision` | str enum | primary routing signal — Python-controlled, never LLM |
+| `eligible` | bool or null | core answer |
+| `reason` | str | explain the decision |
+| `age` | int | "at age 87, factor is 14.4..." |
+| `rmd_required_amount` | float or null | dollar amount to cite |
+| `withdrawal_amount_ytd` | float | what's been done so far |
+| `remaining_rmd` | float or null | what's left to act on |
+| `withdrawal_status` | str | state to explain |
+| `available_cash` | float or null | "you have $X available" |
+| `cash_covers_remaining` | bool or null | cash covers / doesn't cover remaining |
+| `flags` | list[str] | urgency signals to communicate |
+| `client_name` | str or null | personalize the response |
+| `missing_fields` | list[str] | what to ask the advisor for |
+| `data_quality` | list[str] | confidence of explanation (advisor-provided vs DB) |
+| `completeness` | str | how confident to sound (`full` / `partial` / `minimal`) |
+| `inherited_rule` | str or null | `"10-year"` / `"stretch"` — explain the correct inherited IRA rule |
 
 ### Decision enum
 
@@ -122,9 +125,18 @@ Every output always contains all fields. Missing fields are `null` or `[]` — n
 | `RMD_PENDING` | Eligible, Not Started, ≥ 90 days left |
 | `RMD_COMPLETE` | Eligible, Completed |
 | `NO_ACTION` | Not eligible (Roth, too young, unrecognised type) |
-| `MANUAL_REVIEW` | Inherited IRA |
-| `INSUFFICIENT_DATA` | Missing required fields (set by `pre_check`) |
-| `ERROR` | Post-check caught incoherent result |
+| `MANUAL_REVIEW` | Inherited IRA — insufficient info to compute automatically |
+| `INSUFFICIENT_DATA` | Missing required fields |
+| `ERROR` | `post_check` caught incoherent result |
+
+### Inherited IRA rules (when `beneficiary_dob` + `owner_death_date` provided)
+
+| Scenario | Rule | `inherited_rule` |
+|---|---|---|
+| Spouse beneficiary | Stretch — Single Life Expectancy Table | `"stretch"` |
+| Non-spouse, owner died before 2020 | Stretch — Single Life Expectancy Table | `"stretch"` |
+| Non-spouse, owner died 2020+ | 10-year rule — no annual RMD, full balance by year 10 | `"10-year"` |
+| Fields missing | Falls back to `MANUAL_REVIEW` | `null` |
 
 ### data_quality constants
 
@@ -204,11 +216,12 @@ One shared environment at the repo root (`financial-planning/.venv/`). Steps 1�
 
 ## Test fixtures
 
-19 core fixtures + 5 NL parser fixtures. Run separately:
+22 core fixtures + 5 NL parser fixtures + 21 real-data fixtures. Run separately:
 
 ```bash
-make test          # 19 core fixtures (rmd-*.json)
+make test          # 22 core fixtures (rmd-*.json)
 make test-parser   # 5 NL parser fixtures (nl-*.json)
+make test-real     # 21 real-data fixtures (prompts/real/*.json)
 ```
 
 | Fixture | Scenario |
@@ -220,28 +233,25 @@ make test-parser   # 5 NL parser fixtures (nl-*.json)
 | 05 | Age 65 — under 73, not yet eligible → `NO_ACTION` |
 | 06 | Missing DOB and balance — ask back → `INSUFFICIENT_DATA` |
 | 07 | All fields supplied manually — no DB lookup |
-| 08 | Negative balance — rejected before compute → `INSUFFICIENT_DATA` |
-| 09 | Invalid DOB format — rejected before compute → `INSUFFICIENT_DATA` |
+| 08 | Negative balance — rejected → `INVALID_INPUT` |
+| 09 | Invalid DOB format — rejected → `INVALID_INPUT` |
 | 10 | Lowercase `traditional ira` — case-insensitive match |
 | 11 | Lowercase `roth ira` — not eligible, not unknown type |
-| 12 | Inherited IRA — standard table does not apply → `MANUAL_REVIEW` |
+| 12 | Inherited IRA, no fields — standard table does not apply → `MANUAL_REVIEW` |
 | 13 | Employer Retirement Plan (401k/403b/457b) — eligible |
 | 14 | Age 73 — first RMD year, IRS factor 26.5 |
-| 15 | Zero balance — RMD is zero, nothing owed → `RMD_COMPLETE` |
+| 15 | Zero balance — RMD is zero → `RMD_COMPLETE` |
 | 16 | YTD equals RMD exactly — boundary → `RMD_COMPLETE` |
 | 17 | SEP IRA — eligible, same Uniform Lifetime Table |
 | 18 | Rollover IRA — eligible, same Uniform Lifetime Table |
-| 19 | Age 77, Traditional IRA, < 90 days left → `TAKE_RMD_NOW` |
+| 19 | Age 77, < 90 days left → `TAKE_RMD_NOW` |
+| 20 | Inherited IRA, non-spouse, post-SECURE — 10-year rule |
+| 21 | Inherited IRA, spouse — stretch rule, Single Life Expectancy Table |
+| 22 | Inherited IRA, no fields provided — fallback → `MANUAL_REVIEW` |
 
-**NL parser fixtures** (`nl-*.json`) — free text → structured extraction:
-
-| Fixture | Scenario |
-|---|---|
-| nl-01 | Full natural sentence — DOB as month name, balance with comma |
-| nl-02 | Abbreviations — trad IRA, k-suffix balance, casual phrasing |
-| nl-03 | Million suffix balance, 401k alias, partial withdrawal |
-| nl-04 | Missing balance — parser extracts what's there, omits rest |
-| nl-05 | Dollar-formatted balance, Rollover IRA, year-only DOB rejected |
+**Real-data fixtures** (`prompts/real/*.json`) — live accounts from ontology:
+- Schwab, Fidelity IWS, Pershing across all decision paths
+- Bugs found: Fidelity `"Designated Beneficiary"` was silently `NO_ACTION`; rounding `.5` boundary divergence fixed with `ROUND_HALF_UP`
 
 ---
 
@@ -249,10 +259,12 @@ make test-parser   # 5 NL parser fixtures (nl-*.json)
 
 | Limitation | Impact | Plan |
 |---|---|---|
-| Dec 31 balance requires advisor input | Balance proxy flagged with `USING_LATEST_BALANCE_AS_PROXY` | Remains advisor input until ontology exposes point-in-time snapshot |
-| YTD withdrawals require advisor input | No transaction history in ontology | Defaults to 0, flagged with `USER_PROVIDED_WITHDRAWAL_YTD` |
-| DOB missing for Pershing accounts | Advisor must provide DOB for Pershing clients | Resolved when people data lands in ontology |
-| Inherited IRA always manual review | Cannot evaluate 10-year rule automatically | No automated source for beneficiary death date |
+| Dec 31 balance not in ontology | Proxy flagged with `USING_LATEST_BALANCE_AS_PROXY` | Advisor must provide; exact value requires confirmation |
+| YTD withdrawals not in ontology | Defaults to 0 | Must always come from advisor |
+| DOB null for Pershing accounts | Must provide in `client_input` | Resolved when people data lands in ontology |
+| `account_type` wrong for some Schwab accounts | Ontology shows Roth IRA when actually Rollover IRA | Always verify or override via `client_input` |
+| `manager` (advisor name) always null | Removed from output | Not populated in ontology |
+| Inherited IRA auto-compute requires advisor fields | Needs `beneficiary_dob` + `owner_death_date` | No automated source; fallback is `MANUAL_REVIEW` |
 
 ---
 
