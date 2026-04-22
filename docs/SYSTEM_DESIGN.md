@@ -341,22 +341,25 @@ Run with `make test`. CI gate blocks merges on failure.
 
 Purpose: prove the deterministic core is correct before adding any capability.
 
-### Step 2 — ontology-evals integration
+### Step 2 — ontology-evals + Phoenix
 
-Wire fixtures into ontology-evals `config.json`. Add typed assertions:
+Wire fixtures into ontology-evals `config.json`. Assertions evaluated automatically, results uploaded to Arize Phoenix for tracing.
+
+Assertion types used:
 - `exact_value` for `decision`, `withdrawal_status`
 - `field_populated` for `rmd_required_amount` when `eligible=true`
 - `tool_called` for `compute_rmd`
-- `set_contains` for expected `data_quality` flags
+- `set_subset` for expected `data_quality` flags
+- `max_turns` and `max_latency_s` for performance bounds
+- LLM-as-judge for output quality ("Is the recommendation consistent with age and account type?")
 
-Purpose: structured evaluation with reusable assertion types and CI integration.
+Purpose: per-fixture pass/fail with full tool call traces, latency, and decision distribution visible in Phoenix.
 
-### Step 3 — Scientific evaluation
+### Step 3 — Expanded evaluation
 
-Arize Phoenix for production tracing. LLM-as-judge for output quality.
-50+ fixtures covering boundary cases. Hard metrics: accuracy, latency p95, tool call count.
+50+ fixtures covering all IRS age boundaries, account types, cash coverage scenarios, and time pressure cases. LLM-as-judge criteria expanded to cover `flags[]` correctness and `data_quality` provenance.
 
-Purpose: measure quality across the full system — not just pass/fail.
+Purpose: regression safety net as agents are added and wired into the swarm.
 
 ### Key evaluation principle
 

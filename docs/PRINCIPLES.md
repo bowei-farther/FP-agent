@@ -126,6 +126,36 @@ When adding a new agent, verify each principle is upheld before connecting it to
 
 ---
 
+## P13 — Observe before you ship
+
+**Rule:** Every agent must be wired into ontology-evals with Phoenix tracing before it is declared Step 1 complete. `run_tests.py` pass/fail is not sufficient — full tool call traces must be visible.
+
+**Why:** A fixture can pass for the wrong reason — the LLM called `compute_rmd` with incorrect arguments but the output happened to be correct due to rounding. Pass/fail without traces is blind. You cannot debug what you cannot see, and you cannot trust what you cannot debug. Observability is not a Step 2 feature — it is a Step 1 requirement.
+
+**Enforced by:** ontology-evals `config.json` wired for each sub-agent before its Step 1 gate is declared passed. Phoenix traces showing tool call arguments, turn count, and latency are required, not optional.
+
+---
+
+## P14 — Prove stability before integration
+
+**Rule:** The full fixture suite must pass 3 consecutive runs with zero flip-flop before a sub-agent connects to the integration agent. A latency baseline (p95) must be established on Anthropic direct and re-verified after Bedrock swap.
+
+**Why:** `temperature=0` reduces variance but does not eliminate it. A fixture that flips pass/fail across runs is unreliable regardless of today's result. Without a latency baseline before Bedrock swap, there is no way to detect if the swap degraded performance. Stability and latency are not performance concerns — they are correctness concerns for a system that advisors will act on.
+
+**Enforced by:** Step 1 completion gate requires 3-run stability check and p95 latency measurement before and after Bedrock swap. Both must pass before Step 2 begins.
+
+---
+
+## P15 — LLM only where judgment is required
+
+**Rule:** Use the LLM only for steps that require natural language understanding or judgment. Deterministic steps — data retrieval, computation, schema enforcement — are Python. Every LLM round-trip costs latency; eliminate the ones that add no value.
+
+**Why:** A pipeline that calls the LLM 3 times to do `get_data → compute → format` is paying ~4s per fixture when the first two steps are pure Python. The LLM is not making decisions in those turns — it is just choosing between two obviously correct tool calls. That latency multiplies across every advisor request in production. LLM calls are reserved for steps where the LLM's judgment actually matters: NL parsing, conflict explanation, ask-back phrasing.
+
+**Enforced by:** Deterministic agent pipelines use a graph/workflow (Strands pipeline or equivalent) so Python steps execute directly. The LLM is invoked once — for the final explanation — not once per tool call. Task 13 in the Step 1 backlog implements this for the RMD agent.
+
+---
+
 ## Summary
 
 | Principle | What it prevents |
@@ -142,3 +172,6 @@ When adding a new agent, verify each principle is upheld before connecting it to
 | P10 — Decision in Python | LLM decision contradicting verified math |
 | P11 — Ask one field at a time | Advisor abandoning multi-field prompts, incomplete data |
 | P12 — Identity resolution first | Computing against the wrong account silently |
+| P13 — Observe before you ship | Passing fixture masking wrong tool call arguments |
+| P14 — Prove stability before integration | Flaky agent poisoning integrated results |
+| P15 — LLM only where judgment is required | Paying LLM latency for deterministic steps that Python should own |
