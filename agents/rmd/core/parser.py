@@ -153,7 +153,12 @@ def _extract_fields(text: str) -> dict:
     Returns a dict with all keys present (null for missing fields).
     Never raises — returns empty extraction on failure.
     """
-    client = boto3.client("bedrock-runtime", region_name="us-east-1")
+    import os
+    session = boto3.Session(
+        profile_name=os.environ.get("AWS_PROFILE"),
+        region_name="us-east-1",
+    )
+    client = session.client("bedrock-runtime")
     prompt = _EXTRACTION_PROMPT.replace("{input}", text)
 
     try:
