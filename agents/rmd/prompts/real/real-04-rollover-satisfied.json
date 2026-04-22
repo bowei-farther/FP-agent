@@ -1,0 +1,16 @@
+{
+  "id": "real-04",
+  "description": "Rollover IRA, age 82, Fidelity — ytd exceeds RMD, Satisfied",
+  "account_id": "636511790",
+  "_client": "Alan Butterfield",
+  "_custodian": "Fidelity IWS",
+  "client_input": {
+    "prior_year_end_balance": 48380.94,
+    "withdrawal_amount_ytd": 7668.89
+  },
+  "expected_eligible": true,
+  "expected_status": "Completed",
+  "expected_decision": "RMD_COMPLETE",
+  "expected_rmd_amount": 2615.19,
+  "expected_remaining": 0.00
+}

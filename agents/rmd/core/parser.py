@@ -22,10 +22,9 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import re
 
-import anthropic
+import boto3
 
 from .tools import DISTRIBUTION_YEAR, RMD_ELIGIBLE_ACCOUNT_TYPES, ROTH_ACCOUNT_TYPES, INHERITED_IRA_ACCOUNT_TYPES
 
@@ -148,27 +147,43 @@ def _normalize_dob(raw: str | None) -> str | None:
 # LLM extraction call
 # ---------------------------------------------------------------------------
 
+_bedrock_client = None
+
+
+def _get_bedrock_client():
+    """Return a cached boto3 bedrock-runtime client.
+
+    Deferred to first call so AWS_PROFILE is read from env at call time,
+    not at import time. Cached so the instrumentor (which patches at the
+    botocore session level) wraps the client exactly once.
+    """
+    global _bedrock_client
+    if _bedrock_client is None:
+        import os
+        session = boto3.Session(
+            profile_name=os.environ.get("AWS_PROFILE"),
+            region_name="us-east-1",
+        )
+        _bedrock_client = session.client("bedrock-runtime")
+    return _bedrock_client
+
+
 def _extract_fields(text: str) -> dict:
     """Call LLM to extract structured fields from free text.
 
     Returns a dict with all keys present (null for missing fields).
     Never raises — returns empty extraction on failure.
     """
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        raise ValueError("ANTHROPIC_API_KEY not set")
-
-    client = anthropic.Anthropic(api_key=api_key)
+    client = _get_bedrock_client()
     prompt = _EXTRACTION_PROMPT.replace("{input}", text)
 
     try:
-        message = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=512,
-            temperature=0,
-            messages=[{"role": "user", "content": prompt}],
+        response = client.converse(
+            modelId="us.anthropic.claude-haiku-4-5-20251001-v1:0",
+            messages=[{"role": "user", "content": [{"text": prompt}]}],
+            inferenceConfig={"maxTokens": 512, "temperature": 0},
         )
-        raw = message.content[0].text.strip()
+        raw = response["output"]["message"]["content"][0]["text"].strip()
 
         # Strip markdown fences if present
         raw = re.sub(r"^```(?:json)?\s*", "", raw)

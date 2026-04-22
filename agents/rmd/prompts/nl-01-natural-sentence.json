@@ -1,0 +1,12 @@
+{
+  "id": "nl-01",
+  "description": "Full natural sentence — DOB as month name, balance with comma",
+  "input": "My client John Smith was born on March 15, 1950. He has a Traditional IRA with a prior year-end balance of $480,000. He hasn't taken any withdrawals yet this year.",
+  "expected_fields": {
+    "client_name": "John Smith",
+    "date_of_birth": "1950-03-15",
+    "account_type": "Traditional IRA",
+    "prior_year_end_balance": 480000,
+    "withdrawal_amount_ytd": null
+  }
+}

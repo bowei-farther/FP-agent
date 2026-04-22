@@ -16,6 +16,7 @@ import argparse
 import json
 import sys
 import time
+from datetime import date
 from pathlib import Path
 from statistics import mean, quantiles
 
@@ -68,9 +69,11 @@ def _setup_tracing() -> bool:
             return False
 
         from phoenix.otel import register
+        api_key = os.environ.get("PHOENIX_API_KEY") or None
         register(
             project_name="rmd-agent",
             endpoint=endpoint.rstrip("/") + "/v1/traces",
+            api_key=api_key,
             auto_instrument=True,
             batch=False,
             verbose=False,
@@ -96,9 +99,15 @@ def run_fixture(path: Path, measure_latency: bool = False) -> tuple[bool, float]
     expected_eligible = fixture.get("expected_eligible")
     expected_status = fixture.get("expected_status")
     expected_decision = fixture.get("expected_decision")
+    expected_completeness = fixture.get("expected_completeness")
+    expected_data_quality = fixture.get("expected_data_quality")  # list or null
+
+    # Optional: pin today's date so deadline-sensitive decisions are reproducible
+    test_date_str = fixture.get("_test_date")
+    test_date = date.fromisoformat(test_date_str) if test_date_str else None
 
     t0 = time.monotonic()
-    result = rmd_evaluate("", account_id, client_input)
+    result = rmd_evaluate("", account_id, client_input, _today=test_date)
     latency_s = time.monotonic() - t0
 
     errors = []
@@ -117,6 +126,16 @@ def run_fixture(path: Path, measure_latency: bool = False) -> tuple[bool, float]
         actual = result.get("withdrawal_status")
         if actual != expected_status:
             errors.append(f"withdrawal_status: expected={expected_status!r} got={actual!r}")
+
+    if expected_completeness is not None:
+        actual = result.get("completeness")
+        if actual != expected_completeness:
+            errors.append(f"completeness: expected={expected_completeness!r} got={actual!r}")
+
+    if expected_data_quality is not None:
+        actual = result.get("data_quality", [])
+        if set(actual) != set(expected_data_quality):
+            errors.append(f"data_quality: expected={sorted(expected_data_quality)} got={sorted(actual)}")
 
     passed = not errors
     status = PASS if passed else FAIL
@@ -142,7 +161,7 @@ def _print_latency_report(latencies: list[float]) -> None:
     print(f"  mean   {mean(latencies):.2f}s")
 
     p95 = qs[94]
-    threshold = 15.0  # baseline: p50=3.8s, mean=4.3s, single outlier ~11s — tighten after Bedrock swap
+    threshold = 30.0  # Bedrock baseline: p50=5.6s, mean=5.6s, cold start outlier ~23s
     if p95 > threshold:
         print(f"\n  \033[91mWARN\033[0m  p95 {p95:.2f}s exceeds threshold {threshold}s")
     else:
@@ -158,7 +177,7 @@ def main() -> None:
     if args.trace:
         _setup_tracing()
 
-    fixtures = sorted(PROMPTS_DIR.glob("*.json"))
+    fixtures = sorted(f for f in PROMPTS_DIR.glob("*.json") if not f.name.startswith("nl-"))
     if not fixtures:
         print("No fixtures found in prompts/")
         sys.exit(1)

@@ -1,0 +1,14 @@
+{
+  "id": "real-05",
+  "description": "Inherited IRA, age 65, Schwab — Requires Review (standard table does not apply)",
+  "account_id": "86804255",
+  "_client": "Abby Newman",
+  "_custodian": "Schwab",
+  "client_input": {
+    "prior_year_end_balance": 66929.88,
+    "withdrawal_amount_ytd": 0.00
+  },
+  "expected_eligible": null,
+  "expected_status": "Manual Review Required",
+  "expected_decision": "MANUAL_REVIEW"
+}

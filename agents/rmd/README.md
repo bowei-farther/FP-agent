@@ -1,6 +1,6 @@
 # RMD Eligibility Agent
 
-> Status: Step 1 complete — pending Bedrock swap
+> Status: Step 1 complete
 > Location: `agents/rmd/`
 
 Evaluates whether a client account has a Required Minimum Distribution obligation for 2026.
@@ -154,21 +154,22 @@ Every output always contains all fields. Missing fields are `null` or `[]` — n
 evaluate(auth_token, account_id, client_input)
     │
     ▼
-pre_check()          — Python: block if required fields missing
+pre_check()          — Python: block if required fields missing on manual-input path
     │
     ▼
-Strands Agent        — LLM: orchestrate tool calls only
-  ├── get_client_data()   — fetch from ontology, merge with client_input
-  └── compute_rmd()       — IRS math in Python, return result dict
+get_client_data()    — Python: fetch from ontology, merge with client_input
     │
     ▼
-post_check()         — Python: enforce output schema, validate result, set decision
+compute_rmd()        — Python: IRS math, eligibility logic, decision enum
+    │
+    ▼
+post_check()         — Python: enforce output schema, validate result
     │
     ▼
 evaluate() return dict   — all fields always present
 ```
 
-LLM does orchestration only. All math (`compute_rmd`), eligibility logic, schema enforcement, and `decision` assignment are Python.
+No LLM in the main path. All logic is deterministic Python. LLM is used only in the NL input layer (`parser.py`) for field extraction from free text.
 
 ---
 
@@ -203,7 +204,12 @@ One shared environment at the repo root (`financial-planning/.venv/`). Steps 1�
 
 ## Test fixtures
 
-18 fixtures covering all eligibility branches, boundary cases, and error cases:
+19 core fixtures + 5 NL parser fixtures. Run separately:
+
+```bash
+make test          # 19 core fixtures (rmd-*.json)
+make test-parser   # 5 NL parser fixtures (nl-*.json)
+```
 
 | Fixture | Scenario |
 |---|---|
@@ -225,6 +231,17 @@ One shared environment at the repo root (`financial-planning/.venv/`). Steps 1�
 | 16 | YTD equals RMD exactly — boundary → `RMD_COMPLETE` |
 | 17 | SEP IRA — eligible, same Uniform Lifetime Table |
 | 18 | Rollover IRA — eligible, same Uniform Lifetime Table |
+| 19 | Age 77, Traditional IRA, < 90 days left → `TAKE_RMD_NOW` |
+
+**NL parser fixtures** (`nl-*.json`) — free text → structured extraction:
+
+| Fixture | Scenario |
+|---|---|
+| nl-01 | Full natural sentence — DOB as month name, balance with comma |
+| nl-02 | Abbreviations — trad IRA, k-suffix balance, casual phrasing |
+| nl-03 | Million suffix balance, 401k alias, partial withdrawal |
+| nl-04 | Missing balance — parser extracts what's there, omits rest |
+| nl-05 | Dollar-formatted balance, Rollover IRA, year-only DOB rejected |
 
 ---
 
@@ -241,17 +258,15 @@ One shared environment at the repo root (`financial-planning/.venv/`). Steps 1�
 
 ## Step 1 completion gate
 
-Before this agent connects to the integration agent:
-
-- [x] `make test` → 18/18 pass
+- [x] `make test` → 19/19 pass
+- [x] `make test-parser` → 5/5 pass
 - [x] `decision` enum on every output — uppercase, Python-controlled
 - [x] All schema keys always present — `OUTPUT_SCHEMA` merge in `post_check`
 - [x] `data_quality[]` and `completeness` on every output
 - [x] `input_echo` on every output
-- [x] JSON parse retry — 3-attempt loop with fence stripping
+- [x] LLM removed from main path — pure Python pipeline (P15)
 - [x] NL layer — `parser.py` free-text → structured `client_input`
 - [x] CI gate blocking on fixture failures
-- [ ] Bedrock swap verified
-- [x] NL layer — `parser.py` free-text → structured `client_input`
-- [x] CI gate blocking on fixture failures
-- [ ] Bedrock swap — moved to Step 2 (Task 2L)
+- [x] Phoenix tracing wired (`make test-trace`)
+- [x] Bedrock swap verified — 3×19/19 pass, p50=5.6s, p95 within 30s threshold
+- [x] 3-run stability confirmed (2026-04-22)

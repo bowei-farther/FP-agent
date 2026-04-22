@@ -1,0 +1,16 @@
+{
+  "id": "real-20",
+  "description": "Rollover IRA, age 88, Schwab — no withdrawals, Not Taken",
+  "account_id": "85008393",
+  "_client": "Arline Hughes",
+  "_custodian": "Schwab",
+  "client_input": {
+    "prior_year_end_balance": 787142.45,
+    "withdrawal_amount_ytd": 0.00
+  },
+  "expected_eligible": true,
+  "expected_status": "Not Started",
+  "expected_decision": "RMD_PENDING",
+  "expected_rmd_amount": 57455.65,
+  "expected_remaining": 57455.65
+}

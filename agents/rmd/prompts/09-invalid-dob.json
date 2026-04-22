@@ -1,6 +1,6 @@
 {
   "id": "rmd-09",
-  "description": "Invalid date_of_birth format — should return missing_data, not crash",
+  "description": "Invalid date_of_birth format \u2014 should return INVALID_INPUT, not crash",
   "account_id": "manual-input",
   "client_input": {
     "date_of_birth": "not-a-date",
@@ -10,5 +10,12 @@
   },
   "expected_eligible": null,
   "expected_status": null,
-  "expected_decision": "INSUFFICIENT_DATA"
+  "expected_decision": "INVALID_INPUT",
+  "expected_completeness": "partial",
+  "expected_data_quality": [
+    "DOB_FROM_INPUT",
+    "ACCOUNT_TYPE_FROM_INPUT",
+    "USER_PROVIDED_BALANCE",
+    "USER_PROVIDED_WITHDRAWAL_YTD"
+  ]
 }

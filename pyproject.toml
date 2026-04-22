@@ -7,6 +7,10 @@ dependencies = [
     "anthropic>=0.40.0",
     "strands-agents[anthropic]>=1.35.0",
     "requests>=2.31.0",
+    "python-dotenv>=1.2.2",
+    "arize-phoenix-otel>=0.15.0",
+    "openinference-instrumentation-anthropic>=1.0.1",
+    "openinference-instrumentation-bedrock>=0.1.35",
 ]
 
 [tool.uv]

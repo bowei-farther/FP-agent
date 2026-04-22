@@ -1,0 +1,12 @@
+{
+  "id": "nl-03",
+  "description": "Million suffix balance, 401k alias, partial withdrawal",
+  "input": "Robert Chen, born 1948-11-30, has a 401k with 1.2M. He's taken out $25,000 in distributions so far this year.",
+  "expected_fields": {
+    "client_name": "Robert Chen",
+    "date_of_birth": "1948-11-30",
+    "account_type": "Employer Retirement Plan",
+    "prior_year_end_balance": 1200000,
+    "withdrawal_amount_ytd": 25000
+  }
+}

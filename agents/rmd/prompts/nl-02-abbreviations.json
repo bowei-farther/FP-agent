@@ -1,0 +1,12 @@
+{
+  "id": "nl-02",
+  "description": "Abbreviations — trad IRA, k-suffix balance, casual phrasing",
+  "input": "Client: Mary Johnson, DOB 1945-06-20, trad IRA, balance 320k, took out 10k so far.",
+  "expected_fields": {
+    "client_name": "Mary Johnson",
+    "date_of_birth": "1945-06-20",
+    "account_type": "Traditional IRA",
+    "prior_year_end_balance": 320000,
+    "withdrawal_amount_ytd": 10000
+  }
+}

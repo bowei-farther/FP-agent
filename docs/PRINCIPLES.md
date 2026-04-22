@@ -146,13 +146,13 @@ When adding a new agent, verify each principle is upheld before connecting it to
 
 ---
 
-## P15 — LLM only where judgment is required
+## P15 — Dumb workers, smart coordinator
 
-**Rule:** Use the LLM only for steps that require natural language understanding or judgment. Deterministic steps — data retrieval, computation, schema enforcement — are Python. Every LLM round-trip costs latency; eliminate the ones that add no value.
+**Rule:** Sub-agents are deterministic Python workers — no LLM inside them. The LLM lives at the integration layer only, where it does real reasoning: conflict detection, prioritization, advisor-facing explanation. Every LLM round-trip inside a sub-agent is latency paid for work Python can do faster and more reliably.
 
-**Why:** A pipeline that calls the LLM 3 times to do `get_data → compute → format` is paying ~4s per fixture when the first two steps are pure Python. The LLM is not making decisions in those turns — it is just choosing between two obviously correct tool calls. That latency multiplies across every advisor request in production. LLM calls are reserved for steps where the LLM's judgment actually matters: NL parsing, conflict explanation, ask-back phrasing.
+**Why:** Sub-agents (RMD, Roth, TLH) compute deterministic outputs from structured inputs. Calling an LLM to decide which Python function to invoke next is paying ~2s per turn for zero judgment. The integration agent is where judgment is actually needed — reading three sub-agent outputs and producing a coherent recommendation for the advisor. That's one LLM call at the top, not three-per-sub-agent multiplied across every request.
 
-**Enforced by:** Deterministic agent pipelines use a graph/workflow (Strands pipeline or equivalent) so Python steps execute directly. The LLM is invoked once — for the final explanation — not once per tool call. Task 13 in the Step 1 backlog implements this for the RMD agent.
+**Enforced by:** Sub-agents expose `evaluate(auth_token, account_id, client_input) → dict` — pure Python, no Strands Agent inside. The integration agent (Step 2) is a Strands Agent that calls sub-agents as tools in parallel and invokes the LLM once for synthesis. Task 13 removes the LLM from the RMD sub-agent main path.
 
 ---
 
@@ -174,4 +174,4 @@ When adding a new agent, verify each principle is upheld before connecting it to
 | P12 — Identity resolution first | Computing against the wrong account silently |
 | P13 — Observe before you ship | Passing fixture masking wrong tool call arguments |
 | P14 — Prove stability before integration | Flaky agent poisoning integrated results |
-| P15 — LLM only where judgment is required | Paying LLM latency for deterministic steps that Python should own |
+| P15 — Dumb workers, smart coordinator | LLM inside sub-agents paying latency for work Python can do deterministically |

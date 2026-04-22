@@ -1,4 +1,6 @@
 .PHONY: test test-latency test-trace lint \
+        test-parser test-parser-trace \
+        test-real \
         run-rmd run-manual-rmd run-nl-rmd token
 
 # ── Tests ────────────────────────────────────────────────────────────────────
@@ -11,6 +13,15 @@ test-latency:
 
 test-trace:
 	uv run python agents/rmd/run_tests.py --trace --latency
+
+test-parser:
+	AWS_PROFILE=data-lake-dev uv run python agents/rmd/run_parser_tests.py
+
+test-parser-trace:
+	AWS_PROFILE=data-lake-dev uv run python agents/rmd/run_parser_tests.py --trace
+
+test-real:
+	AWS_PROFILE=data-lake-dev uv run python agents/rmd/run_real_tests.py
 
 # ── RMD agent ─────────────────────────────────────────────────────────────────
 # make run-rmd ACCOUNT_ID=38279295

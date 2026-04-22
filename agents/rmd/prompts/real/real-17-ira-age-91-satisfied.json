@@ -1,0 +1,16 @@
+{
+  "id": "real-17",
+  "description": "Traditional IRA, age 91, Schwab — ytd far exceeds RMD, Satisfied",
+  "account_id": "78365074",
+  "_client": "Ann Kantor",
+  "_custodian": "Schwab",
+  "client_input": {
+    "prior_year_end_balance": 203869.95,
+    "withdrawal_amount_ytd": 31564.00
+  },
+  "expected_eligible": true,
+  "expected_status": "Completed",
+  "expected_decision": "RMD_COMPLETE",
+  "expected_rmd_amount": 17727.82,
+  "expected_remaining": 0.00
+}

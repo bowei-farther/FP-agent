@@ -1,0 +1,16 @@
+{
+  "id": "real-11",
+  "description": "Rollover IRA, age 76, Schwab — partial withdrawal, In Progress",
+  "account_id": "69586573",
+  "_client": "Adrien Watson",
+  "_custodian": "Schwab",
+  "client_input": {
+    "prior_year_end_balance": 439884.75,
+    "withdrawal_amount_ytd": 11999.68
+  },
+  "expected_eligible": true,
+  "expected_status": "In Progress",
+  "expected_decision": "RMD_IN_PROGRESS",
+  "expected_rmd_amount": 18560.54,
+  "expected_remaining": 6560.86
+}

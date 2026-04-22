@@ -1,0 +1,16 @@
+{
+  "id": "real-16",
+  "description": "Traditional IRA, age 81, Fidelity — no withdrawals, Not Taken",
+  "account_id": "658306337",
+  "_client": "Alberta Shaw",
+  "_custodian": "Fidelity IWS",
+  "client_input": {
+    "prior_year_end_balance": 61632.29,
+    "withdrawal_amount_ytd": 0.00
+  },
+  "expected_eligible": true,
+  "expected_status": "Not Started",
+  "expected_decision": "RMD_PENDING",
+  "expected_rmd_amount": 3176.92,
+  "expected_remaining": 3176.92
+}

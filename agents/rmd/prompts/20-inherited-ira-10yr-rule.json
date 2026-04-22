@@ -1,0 +1,17 @@
+{
+  "id": "rmd-20",
+  "description": "Inherited IRA, non-spouse, post-SECURE — 10-year rule, 4 years remaining",
+  "account_id": "manual-input",
+  "client_input": {
+    "date_of_birth": "1975-03-10",
+    "account_type": "Inherited IRA",
+    "prior_year_end_balance": 200000,
+    "withdrawal_amount_ytd": 0,
+    "beneficiary_dob": "1975-03-10",
+    "owner_death_date": "2021-06-15",
+    "is_spouse_beneficiary": false
+  },
+  "expected_eligible": true,
+  "expected_decision": "RMD_PENDING",
+  "expected_status": "Not Required"
+}

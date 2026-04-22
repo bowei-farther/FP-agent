@@ -46,12 +46,16 @@ _DQ_IMPERFECT = frozenset({
 REQUIRED_FIELDS = ["date_of_birth", "account_type", "prior_year_end_balance"]
 
 VALID_WITHDRAWAL_STATUSES = {
-    "Not Started", "In Progress", "Completed", "Not Applicable", "Manual Review Required",
+    "Not Started", "In Progress", "Completed", "Not Applicable",
+    "Manual Review Required",
+    "Not Required",   # inherited IRA 10-year rule — no annual RMD
+    "Final Year",     # inherited IRA 10-year rule — last year, must empty
+    "Overdue",        # inherited IRA 10-year rule — deadline passed
 }
 
 VALID_DECISIONS = frozenset({
     "TAKE_RMD_NOW", "RMD_IN_PROGRESS", "RMD_PENDING", "RMD_COMPLETE",
-    "NO_ACTION", "MANUAL_REVIEW", "INSUFFICIENT_DATA", "ERROR",
+    "NO_ACTION", "MANUAL_REVIEW", "INSUFFICIENT_DATA", "INVALID_INPUT", "ERROR",
 })
 
 # Input fields captured in input_echo for auditability (P4).
@@ -121,7 +125,7 @@ def post_check(agent_result: dict) -> dict:
 
     # Step 2: structural coherence guards
     # Pass-through: terminal decisions that are always valid as-is
-    if decision in ("MANUAL_REVIEW", "INSUFFICIENT_DATA"):
+    if decision in ("MANUAL_REVIEW", "INSUFFICIENT_DATA", "INVALID_INPUT"):
         _fill_computed(result)
         return result
 
@@ -133,7 +137,8 @@ def post_check(agent_result: dict) -> dict:
 
     # Guard: eligible account but RMD amount missing (None means compute failed)
     # rmd_amount=0.0 is valid — zero balance produces zero RMD
-    elif eligible is True and rmd_amt is None:
+    # rmd_amount=None is valid for inherited IRA 10-year rule (no annual amount required)
+    elif eligible is True and rmd_amt is None and result.get("_inherited_rule") != "10-year":
         result["decision"] = "ERROR"
         result["reason"] = "Account is RMD-eligible but no required amount was computed. Review prior year-end balance."
         result["_source"] = "post_check:missing_rmd_amount"

@@ -1,0 +1,16 @@
+{
+  "id": "real-10",
+  "description": "IRA, age 94, Schwab — not taken (very high age, factor 9.5)",
+  "account_id": "71253778",
+  "_client": "Alicia Haggett",
+  "_custodian": "Schwab",
+  "client_input": {
+    "prior_year_end_balance": 432318.31,
+    "withdrawal_amount_ytd": 0.00
+  },
+  "expected_eligible": true,
+  "expected_status": "Not Started",
+  "expected_decision": "RMD_PENDING",
+  "expected_rmd_amount": 45507.19,
+  "expected_remaining": 45507.19
+}

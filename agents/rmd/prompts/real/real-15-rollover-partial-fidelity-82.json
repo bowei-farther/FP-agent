@@ -1,0 +1,16 @@
+{
+  "id": "real-15",
+  "description": "Rollover IRA, age 82, Fidelity — partial withdrawal, In Progress",
+  "account_id": "656436042",
+  "_client": "Alan Butterfield",
+  "_custodian": "Fidelity IWS",
+  "client_input": {
+    "prior_year_end_balance": 385478.06,
+    "withdrawal_amount_ytd": 2975.00
+  },
+  "expected_eligible": true,
+  "expected_status": "In Progress",
+  "expected_decision": "RMD_IN_PROGRESS",
+  "expected_rmd_amount": 20836.65,
+  "expected_remaining": 17861.65
+}

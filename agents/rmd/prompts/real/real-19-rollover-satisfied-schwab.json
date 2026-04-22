@@ -1,0 +1,16 @@
+{
+  "id": "real-19",
+  "description": "Rollover IRA, age 75, Schwab — ytd exceeds RMD, Satisfied",
+  "account_id": "65901412",
+  "_client": "Alice Phillips",
+  "_custodian": "Schwab",
+  "client_input": {
+    "prior_year_end_balance": 136730.19,
+    "withdrawal_amount_ytd": 7000.00
+  },
+  "expected_eligible": true,
+  "expected_status": "Completed",
+  "expected_decision": "RMD_COMPLETE",
+  "expected_rmd_amount": 5558.14,
+  "expected_remaining": 0.00
+}
