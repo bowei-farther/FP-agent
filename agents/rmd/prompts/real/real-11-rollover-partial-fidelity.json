@@ -5,6 +5,7 @@
   "_client": "Adrien Watson",
   "_custodian": "Schwab",
   "client_input": {
+    "account_type": "Rollover IRA",
     "prior_year_end_balance": 439884.75,
     "withdrawal_amount_ytd": 11999.68
   },

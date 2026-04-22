@@ -17,7 +17,13 @@ from .tools import DISTRIBUTION_YEAR, compute_rmd, get_client_data
 logger = logging.getLogger(__name__)
 
 
-def evaluate(auth_token: str, account_id: str, client_input: dict | None = None, _today: date | None = None) -> dict:
+def evaluate(
+    auth_token: str,
+    account_id: str,
+    client_input: dict | None = None,
+    _today: date | None = None,
+    _distribution_year: int | None = None,
+) -> dict:
     """Full RMD pipeline: pre_check → get_client_data → compute_rmd → post_check.
 
     Args:
@@ -25,6 +31,7 @@ def evaluate(auth_token: str, account_id: str, client_input: dict | None = None,
         account_id: farther_virtual_account_id or 'manual-input'.
         client_input: Human-supplied field overrides — highest priority.
         _today: Override today's date for testing deadline logic. Uses date.today() if None.
+        _distribution_year: Override distribution year for testing. Uses current year if None.
 
     Returns:
         dict matching OUTPUT_SCHEMA with all keys always present.
@@ -48,7 +55,6 @@ def evaluate(auth_token: str, account_id: str, client_input: dict | None = None,
             "reason": f"Multiple accounts matched account_id '{account_id}'. Advisor must specify a unique account identifier.",
             "data_quality": data.get("data_quality", []),
             "client_name": data.get("client_name"),
-            "advisor_name": data.get("advisor_name"),
             "_source": "ambiguous",
             "completeness": "minimal",
         }
@@ -62,7 +68,6 @@ def evaluate(auth_token: str, account_id: str, client_input: dict | None = None,
             "reason": f"I need one piece of information to continue: {data['_missing'][0]}.",
             "data_quality": data.get("data_quality", []),
             "client_name": data.get("client_name"),
-            "advisor_name": data.get("advisor_name"),
             "_source": "pre_check:missing_fields",
             "completeness": "minimal",
         }
@@ -76,6 +81,7 @@ def evaluate(auth_token: str, account_id: str, client_input: dict | None = None,
         market_value=data.get("market_value"),
         available_cash=data.get("available_cash"),
         _today=_today,
+        _distribution_year=_distribution_year,
         # Inherited IRA fields — only used when account_type is Inherited IRA
         beneficiary_dob=client_input.get("beneficiary_dob"),
         owner_death_date=client_input.get("owner_death_date"),
@@ -85,7 +91,6 @@ def evaluate(auth_token: str, account_id: str, client_input: dict | None = None,
     # Merge data provenance into result
     result["data_quality"] = data.get("data_quality", [])
     result["client_name"] = data.get("client_name")
-    result["advisor_name"] = data.get("advisor_name")
     result["account_id"] = account_id
     if "_source" not in result or result.get("_source") is None:
         result["_source"] = data.get("_source", "unknown")

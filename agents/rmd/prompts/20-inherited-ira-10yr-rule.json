@@ -1,6 +1,6 @@
 {
   "id": "rmd-20",
-  "description": "Inherited IRA, non-spouse, post-SECURE — 10-year rule, 4 years remaining",
+  "description": "Inherited IRA, non-spouse, post-SECURE \u2014 10-year rule, 4 years remaining",
   "account_id": "manual-input",
   "client_input": {
     "date_of_birth": "1975-03-10",
@@ -13,5 +13,6 @@
   },
   "expected_eligible": true,
   "expected_decision": "RMD_PENDING",
-  "expected_status": "Not Required"
+  "expected_status": "Not Required",
+  "_distribution_year": 2026
 }

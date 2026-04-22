@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 # Constants
 # ---------------------------------------------------------------------------
 
-DISTRIBUTION_YEAR = 2026
+DISTRIBUTION_YEAR = date.today().year  # always the current calendar year
 RMD_MIN_AGE = 73
 
 # IRS Single Life Expectancy Table (2022 revision) — used for inherited IRAs
@@ -219,7 +219,7 @@ def _compute_inherited_rmd(
             "market_value": float(market_value) if market_value is not None else None,
             "cash_covers_remaining": (cash >= remaining) if cash is not None and remaining > 0 else None,
             "flags": [f"Inherited IRA ({rule}). Factor {factor:.1f} based on beneficiary age {age_in_lookup_year} at first distribution year."],
-            "_inherited_rule": "stretch",
+            "inherited_rule": "stretch",
         }
 
     # --- Non-spouse post-SECURE: 10-year rule ---
@@ -252,7 +252,7 @@ def _compute_inherited_rmd(
             "market_value": float(market_value) if market_value is not None else None,
             "cash_covers_remaining": (cash >= remaining) if cash is not None and remaining > 0 else None,
             "flags": flags,
-            "_inherited_rule": "10-year",
+            "inherited_rule": "10-year",
         }
     else:
         # No annual RMD required — just track deadline
@@ -273,7 +273,7 @@ def _compute_inherited_rmd(
         "market_value": float(market_value) if market_value is not None else None,
         "cash_covers_remaining": None,
         "flags": flags,
-        "_inherited_rule": "10-year",
+        "inherited_rule": "10-year",
     }
 
 
@@ -300,7 +300,7 @@ def _fetch_object(auth_token: str, account_id: str) -> dict:
     fields = [
         "account_type", "date_of_birth",
         "farther_virtual_account_id", "id_object",
-        "first_name", "last_name", "manager",
+        "first_name", "last_name",
     ]
     for filter_key in ("farther_virtual_account_id", "custodian_account_id"):
         try:
@@ -374,7 +374,6 @@ def get_client_data(auth_token: str, account_id: str, client_input: dict) -> dic
     data: dict[str, Any] = {
         "account_id":             account_id,
         "client_name":            client_input.get("client_name"),
-        "advisor_name":           client_input.get("advisor_name"),
         "account_type":           client_input.get("account_type"),
         "date_of_birth":          client_input.get("date_of_birth"),
         "prior_year_end_balance": client_input.get("prior_year_end_balance"),
@@ -422,8 +421,6 @@ def get_client_data(auth_token: str, account_id: str, client_input: dict) -> dic
                 last = obj.get("last_name", "")
                 full = f"{first} {last}".strip()
                 data["client_name"] = full if full else None
-            if data["advisor_name"] is None:
-                data["advisor_name"] = obj.get("manager")
 
             id_object = obj.get("id_object")
             if id_object:
@@ -460,25 +457,30 @@ def compute_rmd(
     market_value: float | None = None,
     available_cash: float | None = None,
     _today: date | None = None,
+    _distribution_year: int | None = None,
     **kwargs,
 ) -> dict:
     # kwargs accepted: beneficiary_dob, owner_death_date, is_spouse_beneficiary
     """Apply IRS RMD rules and return withdrawal status.
 
     Uses the IRS Uniform Lifetime Table (2022 revision).
-    Distribution year is 2026. Age is calculated as of Dec 31, 2026.
+    Distribution year defaults to the current calendar year (auto-advances each Jan 1).
+    Age is calculated as of Dec 31 of the distribution year.
     decision field is always set here — never by LLM (P10).
 
     Args:
         _today: Override today's date for testing deadline logic. Uses date.today() if None.
+        _distribution_year: Override distribution year for testing. Uses current year if None.
     """
+    dist_year = _distribution_year if _distribution_year is not None else DISTRIBUTION_YEAR
+
     if prior_year_end_balance < 0:
         return {
             "decision": "INVALID_INPUT",
             "reason": f"prior_year_end_balance cannot be negative (got {prior_year_end_balance}).",
         }
 
-    age = _age_as_of_dec31(date_of_birth, DISTRIBUTION_YEAR)
+    age = _age_as_of_dec31(date_of_birth, dist_year)
     if age is None:
         return {
             "decision": "INVALID_INPUT",
@@ -552,7 +554,7 @@ def compute_rmd(
         return {
             "decision": "NO_ACTION",
             "eligible": False,
-            "reason": f"Client is age {age} as of Dec 31, {DISTRIBUTION_YEAR}. RMDs begin at age {RMD_MIN_AGE}.",
+            "reason": f"Client is age {age} as of Dec 31, {dist_year}. RMDs begin at age {RMD_MIN_AGE}.",
             "age": age,
             "rmd_required_amount": None,
             "withdrawal_amount_ytd": withdrawal_amount_ytd,
@@ -603,12 +605,12 @@ def compute_rmd(
 
     flags: list[str] = []
     today = _today if _today is not None else date.today()
-    days_left = (date(DISTRIBUTION_YEAR, 12, 31) - today).days
+    days_left = (date(dist_year, 12, 31) - today).days
     if status != "Completed":
         if days_left < 90:
-            flags.append(f"Fewer than 90 days remaining in {DISTRIBUTION_YEAR} — penalty risk if RMD not completed by Dec 31.")
+            flags.append(f"Fewer than 90 days remaining in {dist_year} — penalty risk if RMD not completed by Dec 31.")
         elif days_left < 180 and status == "Not Started":
-            flags.append(f"RMD not started with fewer than 6 months remaining in {DISTRIBUTION_YEAR}.")
+            flags.append(f"RMD not started with fewer than 6 months remaining in {dist_year}.")
     if cash is not None and remaining > 0 and cash < remaining:
         flags.append(f"Available cash (${cash:,.2f}) is insufficient to cover remaining RMD (${remaining:,.2f}) — liquidation may be required.")
 
@@ -621,10 +623,19 @@ def compute_rmd(
     else:
         decision = "RMD_PENDING"
 
+    if decision == "RMD_COMPLETE":
+        reason = f"Age {age}, {account_type}. RMD of ${rmd_amount:,.2f} satisfied (${ytd:,.2f} withdrawn)."
+    elif decision == "TAKE_RMD_NOW":
+        reason = f"Age {age}, {account_type}. ${remaining:,.2f} remaining of ${rmd_amount:,.2f} RMD — fewer than 90 days left in {dist_year}."
+    elif decision == "RMD_IN_PROGRESS":
+        reason = f"Age {age}, {account_type}. ${ytd:,.2f} of ${rmd_amount:,.2f} RMD withdrawn — ${remaining:,.2f} remaining."
+    else:  # RMD_PENDING
+        reason = f"Age {age}, {account_type}. RMD of ${rmd_amount:,.2f} required — no withdrawals taken yet."
+
     return {
         "decision": decision,
         "eligible": True,
-        "reason": f"Client is age {age} and holds a {account_type}.",
+        "reason": reason,
         "age": age,
         "rmd_required_amount": rmd_amount,
         "withdrawal_amount_ytd": ytd,

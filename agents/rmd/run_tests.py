@@ -102,12 +102,13 @@ def run_fixture(path: Path, measure_latency: bool = False) -> tuple[bool, float]
     expected_completeness = fixture.get("expected_completeness")
     expected_data_quality = fixture.get("expected_data_quality")  # list or null
 
-    # Optional: pin today's date so deadline-sensitive decisions are reproducible
+    # Optional: pin today's date and distribution year so decisions are reproducible
     test_date_str = fixture.get("_test_date")
     test_date = date.fromisoformat(test_date_str) if test_date_str else None
+    dist_year = fixture.get("_distribution_year")
 
     t0 = time.monotonic()
-    result = rmd_evaluate("", account_id, client_input, _today=test_date)
+    result = rmd_evaluate("", account_id, client_input, _today=test_date, _distribution_year=dist_year)
     latency_s = time.monotonic() - t0
 
     errors = []

@@ -1,7 +1,7 @@
 """RMD Agent safety rules.
 
-Pre-check: runs before the Strands agent — blocks on missing required data.
-Post-check: runs after the agent — enforces schema, overrides any unsafe result.
+Pre-check: runs before the pipeline — blocks on missing required data.
+Post-check: runs after the pipeline — enforces schema, overrides any unsafe result.
 
 These are deterministic Python guards that cannot be bypassed by the model.
 """
@@ -9,11 +9,23 @@ These are deterministic Python guards that cannot be bypassed by the model.
 from __future__ import annotations
 
 # ---------------------------------------------------------------------------
-# Output schema (P3) — every key always present in the return dict.
+# Output schema — every key always present in the return dict.
 # post_check merges agent output over this so no key is ever missing.
+#
+# Fields kept for the reasoning layer (LLM at integration layer):
+#   decision, eligible, withdrawal_status, rmd_required_amount, remaining_rmd,
+#   withdrawal_amount_ytd, age, flags, reason, missing_fields, completeness,
+#   client_name, data_quality, available_cash, cash_covers_remaining,
+#   inherited_rule
+#
+# Fields removed:
+#   _source        — internal debug only
+#   input_echo     — redundant, caller already has the input
+#   market_value   — never used in reasoning or decisions
 # ---------------------------------------------------------------------------
 
 OUTPUT_SCHEMA: dict = {
+    "decision":               "INSUFFICIENT_DATA",
     "eligible":               None,
     "reason":                 None,
     "age":                    None,
@@ -22,17 +34,13 @@ OUTPUT_SCHEMA: dict = {
     "remaining_rmd":          None,
     "withdrawal_status":      "Not Applicable",
     "available_cash":         None,
-    "market_value":           None,
     "cash_covers_remaining":  None,
     "flags":                  [],
     "client_name":            None,
-    "advisor_name":           None,
-    "_source":                "unknown",
-    "decision":               "INSUFFICIENT_DATA",
     "missing_fields":         [],
     "data_quality":           [],
     "completeness":           "minimal",
-    "input_echo":             {},
+    "inherited_rule":         None,   # "10-year" | "stretch" | None
 }
 
 # Fields that, when present in data_quality[], indicate imperfect provenance.
@@ -58,20 +66,13 @@ VALID_DECISIONS = frozenset({
     "NO_ACTION", "MANUAL_REVIEW", "INSUFFICIENT_DATA", "INVALID_INPUT", "ERROR",
 })
 
-# Input fields captured in input_echo for auditability (P4).
-_INPUT_ECHO_FIELDS = [
-    "date_of_birth", "account_type", "prior_year_end_balance",
-    "withdrawal_amount_ytd", "market_value", "available_cash",
-    "age", "rmd_required_amount",
-]
-
 
 # ---------------------------------------------------------------------------
 # Pre-check
 # ---------------------------------------------------------------------------
 
 def pre_check(client: dict) -> dict | None:
-    """Run before the agent pipeline.
+    """Run before the pipeline.
 
     Returns an INSUFFICIENT_DATA result dict if required fields are missing,
     else None. Never blocks on optional fields.
@@ -87,7 +88,6 @@ def pre_check(client: dict) -> dict | None:
                 "and prior year-end balance."
             ),
             "missing_fields": missing,
-            "_source": "pre_check:missing_required_fields",
         }
     return None
 
@@ -97,81 +97,78 @@ def pre_check(client: dict) -> dict | None:
 # ---------------------------------------------------------------------------
 
 def post_check(agent_result: dict) -> dict:
-    """Run after the agent pipeline.
+    """Run after the pipeline.
 
     Steps (in order):
     1. Merge over OUTPUT_SCHEMA so all keys are always present.
     2. Override decision to ERROR for structurally incoherent results.
     3. Compute completeness from data_quality[].
-    4. Build input_echo from fields used in the calculation.
-    5. Pass through valid MANUAL_REVIEW and INSUFFICIENT_DATA without further checks.
+    4. Pass through valid MANUAL_REVIEW and INSUFFICIENT_DATA without further checks.
     """
-    # Step 1: guarantee all keys present (P3)
+    # Step 1: guarantee all keys present
     if not isinstance(agent_result, dict) or not agent_result:
         return {
             **OUTPUT_SCHEMA,
             "decision": "ERROR",
             "reason": "Agent returned an empty or malformed result.",
-            "_source": "post_check:malformed_result",
         }
 
     result = {**OUTPUT_SCHEMA, **agent_result}
 
-    eligible = result.get("eligible")
-    status   = result.get("withdrawal_status")
-    rmd_amt  = result.get("rmd_required_amount")
-    decision = result.get("decision", "INSUFFICIENT_DATA")
+    # Rename _inherited_rule → inherited_rule if coming from compute_rmd
+    if "_inherited_rule" in result:
+        result["inherited_rule"] = result.pop("_inherited_rule")
+
+    # Remove fields that should never be in output
+    for key in ("_source", "input_echo", "market_value", "account_id"):
+        result.pop(key, None)
+
+    eligible  = result.get("eligible")
+    status    = result.get("withdrawal_status")
+    rmd_amt   = result.get("rmd_required_amount")
+    decision  = result.get("decision", "INSUFFICIENT_DATA")
     remaining = result.get("remaining_rmd")
 
     # Step 2: structural coherence guards
     # Pass-through: terminal decisions that are always valid as-is
     if decision in ("MANUAL_REVIEW", "INSUFFICIENT_DATA", "INVALID_INPUT"):
-        _fill_computed(result)
+        _fill_completeness(result)
         return result
 
     # Guard: unrecognised decision value
     if decision not in VALID_DECISIONS:
         result["decision"] = "ERROR"
         result["reason"] = f"Unrecognised decision value '{decision}'."
-        result["_source"] = "post_check:invalid_decision"
 
-    # Guard: eligible account but RMD amount missing (None means compute failed)
+    # Guard: eligible account but RMD amount missing
     # rmd_amount=0.0 is valid — zero balance produces zero RMD
-    # rmd_amount=None is valid for inherited IRA 10-year rule (no annual amount required)
-    elif eligible is True and rmd_amt is None and result.get("_inherited_rule") != "10-year":
+    # rmd_amount=None is valid for inherited IRA 10-year rule (no annual amount)
+    elif eligible is True and rmd_amt is None and result.get("inherited_rule") != "10-year":
         result["decision"] = "ERROR"
         result["reason"] = "Account is RMD-eligible but no required amount was computed. Review prior year-end balance."
-        result["_source"] = "post_check:missing_rmd_amount"
 
     # Guard: unrecognised withdrawal status
     elif status not in VALID_WITHDRAWAL_STATUSES:
         result["decision"] = "ERROR"
         result["reason"] = f"Unrecognised withdrawal status '{status}'."
-        result["_source"] = "post_check:invalid_status"
 
     # Guard: ineligible account should not have an RMD amount
     elif eligible is False and rmd_amt is not None:
         result["decision"] = "ERROR"
         result["reason"] = "Account is not RMD-eligible but an RMD amount was returned."
-        result["_source"] = "post_check:ineligible_with_amount"
 
     # Guard: completed withdrawal should have zero remaining
     elif status == "Completed" and remaining is not None and remaining > 0:
         result["decision"] = "ERROR"
         result["reason"] = f"Withdrawal status is 'Completed' but remaining_rmd is {remaining}."
-        result["_source"] = "post_check:completed_with_remaining"
 
-    _fill_computed(result)
+    _fill_completeness(result)
     return result
 
 
-def _fill_computed(result: dict) -> None:
-    """Compute completeness and input_echo in-place (P4, Task 4 and 6)."""
+def _fill_completeness(result: dict) -> None:
+    """Compute completeness in-place."""
     dq: list[str] = result.get("data_quality") or []
-
-    # completeness: full if all required fields resolved without imperfect proxies
-    # partial if a proxy was used or optional fields missing
-    # minimal if required fields are missing
     missing = result.get("missing_fields") or []
     if missing:
         result["completeness"] = "minimal"
@@ -179,10 +176,3 @@ def _fill_computed(result: dict) -> None:
         result["completeness"] = "partial"
     else:
         result["completeness"] = "full"
-
-    # input_echo: exact field values used in the computation
-    result["input_echo"] = {
-        k: result[k]
-        for k in _INPUT_ECHO_FIELDS
-        if result.get(k) is not None
-    }
