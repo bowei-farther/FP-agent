@@ -40,6 +40,19 @@ def evaluate(auth_token: str, account_id: str, client_input: dict | None = None,
     # Step 1: fetch and merge client data (pure Python, no LLM)
     data = get_client_data(auth_token, account_id, client_input)
 
+    # Ambiguous account ID — multiple records matched (P12)
+    if data.get("_ambiguous"):
+        return {
+            **OUTPUT_SCHEMA,
+            "decision": "INVALID_INPUT",
+            "reason": f"Multiple accounts matched account_id '{account_id}'. Advisor must specify a unique account identifier.",
+            "data_quality": data.get("data_quality", []),
+            "client_name": data.get("client_name"),
+            "advisor_name": data.get("advisor_name"),
+            "_source": "ambiguous",
+            "completeness": "minimal",
+        }
+
     # Missing required fields — surface as INSUFFICIENT_DATA
     if data.get("_missing"):
         return {

@@ -51,7 +51,7 @@ VALID_WITHDRAWAL_STATUSES = {
 
 VALID_DECISIONS = frozenset({
     "TAKE_RMD_NOW", "RMD_IN_PROGRESS", "RMD_PENDING", "RMD_COMPLETE",
-    "NO_ACTION", "MANUAL_REVIEW", "INSUFFICIENT_DATA", "ERROR",
+    "NO_ACTION", "MANUAL_REVIEW", "INSUFFICIENT_DATA", "INVALID_INPUT", "ERROR",
 })
 
 # Input fields captured in input_echo for auditability (P4).
@@ -121,7 +121,7 @@ def post_check(agent_result: dict) -> dict:
 
     # Step 2: structural coherence guards
     # Pass-through: terminal decisions that are always valid as-is
-    if decision in ("MANUAL_REVIEW", "INSUFFICIENT_DATA"):
+    if decision in ("MANUAL_REVIEW", "INSUFFICIENT_DATA", "INVALID_INPUT"):
         _fill_computed(result)
         return result
 

@@ -147,18 +147,34 @@ def _normalize_dob(raw: str | None) -> str | None:
 # LLM extraction call
 # ---------------------------------------------------------------------------
 
+_bedrock_client = None
+
+
+def _get_bedrock_client():
+    """Return a cached boto3 bedrock-runtime client.
+
+    Deferred to first call so AWS_PROFILE is read from env at call time,
+    not at import time. Cached so the instrumentor (which patches at the
+    botocore session level) wraps the client exactly once.
+    """
+    global _bedrock_client
+    if _bedrock_client is None:
+        import os
+        session = boto3.Session(
+            profile_name=os.environ.get("AWS_PROFILE"),
+            region_name="us-east-1",
+        )
+        _bedrock_client = session.client("bedrock-runtime")
+    return _bedrock_client
+
+
 def _extract_fields(text: str) -> dict:
     """Call LLM to extract structured fields from free text.
 
     Returns a dict with all keys present (null for missing fields).
     Never raises — returns empty extraction on failure.
     """
-    import os
-    session = boto3.Session(
-        profile_name=os.environ.get("AWS_PROFILE"),
-        region_name="us-east-1",
-    )
-    client = session.client("bedrock-runtime")
+    client = _get_bedrock_client()
     prompt = _EXTRACTION_PROMPT.replace("{input}", text)
 
     try:

@@ -108,10 +108,15 @@ def _irs_factor(age: int) -> float | None:
     return IRS_FACTORS.get(min(age, 100))
 
 
+_AMBIGUOUS_ACCOUNT_ID = "__ambiguous__"
+
 def _fetch_object(auth_token: str, account_id: str) -> dict:
     """Fetch account object fields from the ontology API.
 
     Tries farther_virtual_account_id first, then custodian_account_id as fallback.
+
+    Returns {} if not found.
+    Returns {"_ambiguous": True} if multiple accounts match the same ID (P12).
     """
     fields = [
         "account_type", "date_of_birth",
@@ -130,11 +135,14 @@ def _fetch_object(auth_token: str, account_id: str) -> dict:
                     },
                     "fields": fields,
                 },
-                params={"page": 1, "page_size": 1},
+                params={"page": 1, "page_size": 2},
                 timeout=15,
             )
             resp.raise_for_status()
             data = resp.json().get("data", [])
+            if len(data) > 1:
+                logger.warning("[object fetch] Ambiguous account_id=%s (%s): %d records matched", account_id, filter_key, len(data))
+                return {"_ambiguous": True}
             if data:
                 return data[0]
         except requests.HTTPError as e:
@@ -214,6 +222,12 @@ def get_client_data(auth_token: str, account_id: str, client_input: dict) -> dic
 
     if needs_db and account_id and account_id != "manual-input":
         obj = _fetch_object(auth_token, account_id)
+        if obj.get("_ambiguous"):
+            data["_missing"] = ["account_id"]
+            data["_source"] = "ambiguous"
+            data["data_quality"] = data_quality
+            data["_ambiguous"] = True
+            return data
         if obj:
             db_source = "api"
             if data["account_type"] is None:
@@ -279,17 +293,15 @@ def compute_rmd(
     """
     if prior_year_end_balance < 0:
         return {
-            "decision": "INSUFFICIENT_DATA",
-            "missing_fields": ["prior_year_end_balance"],
+            "decision": "INVALID_INPUT",
             "reason": f"prior_year_end_balance cannot be negative (got {prior_year_end_balance}).",
         }
 
     age = _age_as_of_dec31(date_of_birth, DISTRIBUTION_YEAR)
     if age is None:
         return {
-            "decision": "INSUFFICIENT_DATA",
-            "missing_fields": ["date_of_birth"],
-            "reason": f"date_of_birth '{date_of_birth}' is not a valid ISO date (expected YYYY-MM-DD).",
+            "decision": "INVALID_INPUT",
+            "reason": f"date_of_birth '{date_of_birth}' is not a valid date format (expected YYYY-MM-DD).",
         }
 
     account_type_norm = account_type.strip().lower()

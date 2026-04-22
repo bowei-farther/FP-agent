@@ -1,6 +1,6 @@
 {
   "id": "rmd-14",
-  "description": "Age 73 — first RMD year, IRS factor 26.5",
+  "description": "Age 73 \u2014 first RMD year, IRS factor 26.5",
   "account_id": "manual-input",
   "_test_date": "2026-04-21",
   "client_input": {
@@ -11,5 +11,12 @@
   },
   "expected_eligible": true,
   "expected_status": "Not Started",
-  "expected_decision": "RMD_PENDING"
+  "expected_decision": "RMD_PENDING",
+  "expected_completeness": "partial",
+  "expected_data_quality": [
+    "DOB_FROM_INPUT",
+    "ACCOUNT_TYPE_FROM_INPUT",
+    "USER_PROVIDED_BALANCE",
+    "USER_PROVIDED_WITHDRAWAL_YTD"
+  ]
 }

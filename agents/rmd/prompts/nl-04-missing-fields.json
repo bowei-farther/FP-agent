@@ -1,0 +1,12 @@
+{
+  "id": "nl-04",
+  "description": "Missing balance — parser extracts what's there, omits the rest",
+  "input": "Susan Lee, DOB 1952-08-10, SEP IRA. I don't have the balance handy.",
+  "expected_fields": {
+    "client_name": "Susan Lee",
+    "date_of_birth": "1952-08-10",
+    "account_type": "SEP IRA",
+    "prior_year_end_balance": null,
+    "withdrawal_amount_ytd": null
+  }
+}

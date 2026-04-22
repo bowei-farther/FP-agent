@@ -318,6 +318,15 @@ wheels = [
 ]
 
 [[package]]
+name = "dacite"
+version = "1.9.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/55/a0/7ca79796e799a3e782045d29bf052b5cde7439a2bbb17f15ff44f7aacc63/dacite-1.9.2.tar.gz", hash = "sha256:6ccc3b299727c7aa17582f0021f6ae14d5de47c7227932c47fec4cdfefd26f09", size = 22420, upload-time = "2025-02-05T09:27:29.757Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/94/35/386550fd60316d1e37eccdda609b074113298f23cef5bddb2049823fe666/dacite-1.9.2-py3-none-any.whl", hash = "sha256:053f7c3f5128ca2e9aceb66892b1a3c8936d02c686e707bee96e19deef4bc4a0", size = 16600, upload-time = "2025-02-05T09:27:24.345Z" },
+]
+
+[[package]]
 name = "distro"
 version = "1.9.0"
 source = { registry = "https://pypi.org/simple" }
@@ -343,6 +352,7 @@ dependencies = [
     { name = "anthropic" },
     { name = "arize-phoenix-otel" },
     { name = "openinference-instrumentation-anthropic" },
+    { name = "openinference-instrumentation-bedrock" },
     { name = "python-dotenv" },
     { name = "requests" },
     { name = "strands-agents", extra = ["anthropic"] },
@@ -359,6 +369,7 @@ requires-dist = [
     { name = "anthropic", specifier = ">=0.40.0" },
     { name = "arize-phoenix-otel", specifier = ">=0.15.0" },
     { name = "openinference-instrumentation-anthropic", specifier = ">=1.0.1" },
+    { name = "openinference-instrumentation-bedrock", specifier = ">=0.1.35" },
     { name = "python-dotenv", specifier = ">=1.2.2" },
     { name = "requests", specifier = ">=2.31.0" },
     { name = "strands-agents", extras = ["anthropic"], specifier = ">=1.35.0" },
@@ -663,6 +674,25 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/cc/b5/88f3f45af83279083332dc50010a36c88020fb5a13b511708b95ad1e1446/openinference_instrumentation_anthropic-1.0.1.tar.gz", hash = "sha256:d27263588ea0c94f2525e4df27f26f23c9fcc8f7a2e2eac8d837fb7a4cb8d0b0", size = 15610, upload-time = "2026-04-22T00:39:26.426Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/1b/aa/80b28c9baeefe5f35cfc9db0ab2dfa632e3b457408dd19b9cbc005228ac3/openinference_instrumentation_anthropic-1.0.1-py3-none-any.whl", hash = "sha256:ab2e0d706aa38fb48f9ea3b1faa839d68b926040382f257fd452a07e2e268d5b", size = 18856, upload-time = "2026-04-22T00:39:25.569Z" },
+]
+
+[[package]]
+name = "openinference-instrumentation-bedrock"
+version = "0.1.35"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "dacite" },
+    { name = "openinference-instrumentation" },
+    { name = "openinference-semantic-conventions" },
+    { name = "opentelemetry-api" },
+    { name = "opentelemetry-instrumentation" },
+    { name = "opentelemetry-semantic-conventions" },
+    { name = "typing-extensions" },
+    { name = "wrapt" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/84/1f/84431753990646a4676856ca70aaa01e53302810032d296433ca01a7c94a/openinference_instrumentation_bedrock-0.1.35.tar.gz", hash = "sha256:fee85d97979c52e9f9a7792ee506f41480aefab1b68022a6f07c1a6c51a5bd3c", size = 215834, upload-time = "2026-04-22T00:39:27.451Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/dc/1c/70451b9e059fbf46dd5c73562f218ae185f3833446f7731b9c6a08770450/openinference_instrumentation_bedrock-0.1.35-py3-none-any.whl", hash = "sha256:f983450cdb54cc068de82025829bc0734f599367c747c16a59af6684dfc3b54f", size = 67344, upload-time = "2026-04-22T00:39:25.929Z" },
 ]
 
 [[package]]

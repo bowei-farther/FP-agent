@@ -1,11 +1,13 @@
 {
   "id": "rmd-06",
-  "description": "Missing date_of_birth and balance — agent should ask back",
+  "description": "Missing date_of_birth and balance \u2014 agent should ask back",
   "account_id": "manual-input",
   "client_input": {
     "account_type": "Traditional IRA"
   },
   "expected_eligible": null,
   "expected_status": null,
-  "expected_decision": "INSUFFICIENT_DATA"
+  "expected_decision": "INSUFFICIENT_DATA",
+  "expected_completeness": "minimal",
+  "expected_data_quality": []
 }

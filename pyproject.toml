@@ -10,6 +10,7 @@ dependencies = [
     "python-dotenv>=1.2.2",
     "arize-phoenix-otel>=0.15.0",
     "openinference-instrumentation-anthropic>=1.0.1",
+    "openinference-instrumentation-bedrock>=0.1.35",
 ]
 
 [tool.uv]

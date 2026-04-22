@@ -1,6 +1,6 @@
 {
   "id": "rmd-10",
-  "description": "Lowercase account_type 'traditional ira' — should still match as eligible",
+  "description": "Lowercase account_type 'traditional ira' \u2014 should still match as eligible",
   "account_id": "manual-input",
   "_test_date": "2026-04-21",
   "client_input": {
@@ -11,5 +11,12 @@
   },
   "expected_eligible": true,
   "expected_status": "Not Started",
-  "expected_decision": "RMD_PENDING"
+  "expected_decision": "RMD_PENDING",
+  "expected_completeness": "partial",
+  "expected_data_quality": [
+    "DOB_FROM_INPUT",
+    "ACCOUNT_TYPE_FROM_INPUT",
+    "USER_PROVIDED_BALANCE",
+    "USER_PROVIDED_WITHDRAWAL_YTD"
+  ]
 }

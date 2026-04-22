@@ -99,6 +99,8 @@ def run_fixture(path: Path, measure_latency: bool = False) -> tuple[bool, float]
     expected_eligible = fixture.get("expected_eligible")
     expected_status = fixture.get("expected_status")
     expected_decision = fixture.get("expected_decision")
+    expected_completeness = fixture.get("expected_completeness")
+    expected_data_quality = fixture.get("expected_data_quality")  # list or null
 
     # Optional: pin today's date so deadline-sensitive decisions are reproducible
     test_date_str = fixture.get("_test_date")
@@ -124,6 +126,16 @@ def run_fixture(path: Path, measure_latency: bool = False) -> tuple[bool, float]
         actual = result.get("withdrawal_status")
         if actual != expected_status:
             errors.append(f"withdrawal_status: expected={expected_status!r} got={actual!r}")
+
+    if expected_completeness is not None:
+        actual = result.get("completeness")
+        if actual != expected_completeness:
+            errors.append(f"completeness: expected={expected_completeness!r} got={actual!r}")
+
+    if expected_data_quality is not None:
+        actual = result.get("data_quality", [])
+        if set(actual) != set(expected_data_quality):
+            errors.append(f"data_quality: expected={sorted(expected_data_quality)} got={sorted(actual)}")
 
     passed = not errors
     status = PASS if passed else FAIL

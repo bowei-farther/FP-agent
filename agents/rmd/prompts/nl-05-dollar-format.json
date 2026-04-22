@@ -1,0 +1,12 @@
+{
+  "id": "nl-05",
+  "description": "Dollar-formatted balance, Rollover IRA, year-only DOB rejected",
+  "input": "Client is David Park, Rollover IRA, balance $178,000. Born in 1953. No withdrawals taken.",
+  "expected_fields": {
+    "client_name": "David Park",
+    "date_of_birth": null,
+    "account_type": "Rollover IRA",
+    "prior_year_end_balance": 178000,
+    "withdrawal_amount_ytd": null
+  }
+}
