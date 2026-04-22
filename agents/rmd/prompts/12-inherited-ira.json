@@ -2,6 +2,7 @@
   "id": "rmd-12",
   "description": "Inherited IRA — manual review required, standard Uniform Lifetime Table does not apply",
   "account_id": "manual-input",
+  "_test_date": "2026-04-21",
   "client_input": {
     "date_of_birth": "1958-03-20",
     "account_type": "Inherited IRA",
@@ -9,5 +10,6 @@
     "withdrawal_amount_ytd": 0
   },
   "expected_eligible": null,
-  "expected_status": "Manual Review Required"
+  "expected_status": "Manual Review Required",
+  "expected_decision": "MANUAL_REVIEW"
 }

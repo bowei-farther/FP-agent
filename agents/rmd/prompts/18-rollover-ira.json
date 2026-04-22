@@ -2,6 +2,7 @@
   "id": "rmd-18",
   "description": "Rollover IRA — eligible, same Uniform Lifetime Table as Traditional IRA",
   "account_id": "manual-input",
+  "_test_date": "2026-04-21",
   "client_input": {
     "date_of_birth": "1947-09-12",
     "account_type": "Rollover IRA",
@@ -10,5 +11,5 @@
   },
   "expected_eligible": true,
   "expected_status": "Not Started",
-  "expected_decision": null
+  "expected_decision": "RMD_PENDING"
 }

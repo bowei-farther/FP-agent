@@ -2,6 +2,7 @@
   "id": "rmd-05",
   "description": "Age 65 — under 73, not eligible",
   "account_id": "manual-input",
+  "_test_date": "2026-04-21",
   "client_input": {
     "date_of_birth": "1960-09-10",
     "account_type": "Traditional IRA",
@@ -11,5 +12,6 @@
     "market_value": 98000
   },
   "expected_eligible": false,
-  "expected_status": "Not Applicable"
+  "expected_status": "Not Applicable",
+  "expected_decision": "NO_ACTION"
 }

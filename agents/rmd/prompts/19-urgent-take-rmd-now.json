@@ -1,8 +1,8 @@
 {
-  "id": "rmd-01",
-  "description": "Age 76, Traditional IRA, no withdrawals yet — not started",
+  "id": "rmd-19",
+  "description": "Age 77, Traditional IRA, not started, fewer than 90 days left — TAKE_RMD_NOW",
   "account_id": "manual-input",
-  "_test_date": "2026-04-21",
+  "_test_date": "2026-10-15",
   "client_input": {
     "date_of_birth": "1949-06-15",
     "account_type": "Traditional IRA",
@@ -13,5 +13,5 @@
   },
   "expected_eligible": true,
   "expected_status": "Not Started",
-  "expected_decision": "RMD_PENDING"
+  "expected_decision": "TAKE_RMD_NOW"
 }

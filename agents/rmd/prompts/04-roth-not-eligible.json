@@ -2,6 +2,7 @@
   "id": "rmd-04",
   "description": "Roth IRA — never subject to RMDs",
   "account_id": "manual-input",
+  "_test_date": "2026-04-21",
   "client_input": {
     "date_of_birth": "1948-07-04",
     "account_type": "Roth IRA",
@@ -11,5 +12,6 @@
     "market_value": 155000
   },
   "expected_eligible": false,
-  "expected_status": "Not Applicable"
+  "expected_status": "Not Applicable",
+  "expected_decision": "NO_ACTION"
 }

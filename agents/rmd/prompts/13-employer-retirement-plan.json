@@ -2,6 +2,7 @@
   "id": "rmd-13",
   "description": "Employer Retirement Plan (ontology label for 401k/403b/457b) — age 74, RMD not started",
   "account_id": "manual-input",
+  "_test_date": "2026-04-21",
   "client_input": {
     "date_of_birth": "1951-08-01",
     "account_type": "Employer Retirement Plan",
@@ -10,5 +11,6 @@
     "available_cash": 10000
   },
   "expected_eligible": true,
-  "expected_status": "Not Started"
+  "expected_status": "Not Started",
+  "expected_decision": "RMD_PENDING"
 }

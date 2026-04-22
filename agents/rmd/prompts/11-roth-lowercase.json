@@ -2,6 +2,7 @@
   "id": "rmd-11",
   "description": "Lowercase 'roth ira' — should be not eligible, not treated as unknown type",
   "account_id": "manual-input",
+  "_test_date": "2026-04-21",
   "client_input": {
     "date_of_birth": "1949-06-15",
     "account_type": "roth ira",
@@ -10,5 +11,5 @@
   },
   "expected_eligible": false,
   "expected_status": "Not Applicable",
-  "expected_decision": null
+  "expected_decision": "NO_ACTION"
 }

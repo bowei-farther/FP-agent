@@ -374,11 +374,20 @@ Before wiring any agent into the integrated advisor:
 
 - [x] Threat model: free-text input → prompt injection scenarios documented
 - [x] Security eval suite: 5 injection cases passed — decision always Python-controlled, no prompt leak, system tags ignored. Note: LLM follows last stated value on contradictions (e.g. "Roth IRA... actually Traditional IRA") — expected behavior, advisor-facing surface only
-- [ ] PII check: confirm `social_security_number` never appears in any tool call argument or log
+- [x] PII check: `social_security_number` never referenced in codebase. Ontology API requests only 7 fields (account_type, date_of_birth, name, manager, IDs). NL parser extracts no PII beyond name and DOB.
 
 ---
 
 ## Step 2 — Integrated Advisor (Roth + TLH + RMD)
+
+### Blocking questions — talk to DM/team before starting
+
+| Question | Impact |
+|---|---|
+| Is YTD withdrawal data going into the ontology? Timeline? | If no → must use Data Lake APIs (same as Vanadium) or stay manual forever |
+| Is Dec 31 balance snapshot going into the ontology? Timeline? | If no → current proxy (`USING_LATEST_BALANCE_AS_PROXY`) is permanent, not temporary |
+| For inherited IRAs — is prior owner DOB/DOD tracked anywhere accessible? | If no → `MANUAL_REVIEW` is permanent for inherited IRAs, cannot automate |
+| Is the team planning to use Data Lake APIs directly from agents? | Determines whether P6 (ontology only) should be revised before Step 2 |
 
 ### Architecture — dumb workers, smart coordinator
 

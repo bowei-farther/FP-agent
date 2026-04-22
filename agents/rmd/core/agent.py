@@ -9,6 +9,7 @@ LLM lives at the integration layer only (Step 2).
 from __future__ import annotations
 
 import logging
+from datetime import date
 
 from .rules import OUTPUT_SCHEMA, post_check, pre_check
 from .tools import DISTRIBUTION_YEAR, compute_rmd, get_client_data
@@ -16,13 +17,14 @@ from .tools import DISTRIBUTION_YEAR, compute_rmd, get_client_data
 logger = logging.getLogger(__name__)
 
 
-def evaluate(auth_token: str, account_id: str, client_input: dict | None = None) -> dict:
+def evaluate(auth_token: str, account_id: str, client_input: dict | None = None, _today: date | None = None) -> dict:
     """Full RMD pipeline: pre_check → get_client_data → compute_rmd → post_check.
 
     Args:
         auth_token: Farther API auth token.
         account_id: farther_virtual_account_id or 'manual-input'.
         client_input: Human-supplied field overrides — highest priority.
+        _today: Override today's date for testing deadline logic. Uses date.today() if None.
 
     Returns:
         dict matching OUTPUT_SCHEMA with all keys always present.
@@ -60,6 +62,7 @@ def evaluate(auth_token: str, account_id: str, client_input: dict | None = None)
         withdrawal_amount_ytd=data.get("withdrawal_amount_ytd") or 0.0,
         market_value=data.get("market_value"),
         available_cash=data.get("available_cash"),
+        _today=_today,
     )
 
     # Merge data provenance into result

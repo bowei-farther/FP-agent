@@ -16,6 +16,7 @@ import argparse
 import json
 import sys
 import time
+from datetime import date
 from pathlib import Path
 from statistics import mean, quantiles
 
@@ -99,8 +100,12 @@ def run_fixture(path: Path, measure_latency: bool = False) -> tuple[bool, float]
     expected_status = fixture.get("expected_status")
     expected_decision = fixture.get("expected_decision")
 
+    # Optional: pin today's date so deadline-sensitive decisions are reproducible
+    test_date_str = fixture.get("_test_date")
+    test_date = date.fromisoformat(test_date_str) if test_date_str else None
+
     t0 = time.monotonic()
-    result = rmd_evaluate("", account_id, client_input)
+    result = rmd_evaluate("", account_id, client_input, _today=test_date)
     latency_s = time.monotonic() - t0
 
     errors = []

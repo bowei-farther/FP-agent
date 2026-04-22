@@ -266,12 +266,16 @@ def compute_rmd(
     rmd_amount_stored: float | None = None,
     market_value: float | None = None,
     available_cash: float | None = None,
+    _today: date | None = None,
 ) -> dict:
     """Apply IRS RMD rules and return withdrawal status.
 
     Uses the IRS Uniform Lifetime Table (2022 revision).
     Distribution year is 2026. Age is calculated as of Dec 31, 2026.
     decision field is always set here — never by LLM (P10).
+
+    Args:
+        _today: Override today's date for testing deadline logic. Uses date.today() if None.
     """
     if prior_year_end_balance < 0:
         return {
@@ -380,7 +384,7 @@ def compute_rmd(
     cash_covers = (cash >= remaining) if cash is not None and remaining > 0 else None
 
     flags: list[str] = []
-    today = date.today()
+    today = _today if _today is not None else date.today()
     days_left = (date(DISTRIBUTION_YEAR, 12, 31) - today).days
     if status != "Completed":
         if days_left < 90:
