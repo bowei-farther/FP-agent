@@ -1,20 +1,59 @@
-.PHONY: test lint test-rmd run-rmd run-nl-rmd
+.PHONY: test test-latency test-trace lint \
+        run-rmd run-manual-rmd run-nl-rmd token
 
-# Run all agent test suites
-test: test-rmd
+# ── Tests ────────────────────────────────────────────────────────────────────
 
-# RMD agent
-test-rmd:
-	$(MAKE) -C agents/rmd test
+test:
+	uv run python agents/rmd/run_tests.py 2>/dev/null
+
+test-latency:
+	uv run python agents/rmd/run_tests.py --latency
+
+test-trace:
+	uv run python agents/rmd/run_tests.py --trace --latency
+
+# ── RMD agent ─────────────────────────────────────────────────────────────────
+# make run-rmd ACCOUNT_ID=38279295
+# make run-rmd ACCOUNT_ID=38279295 BALANCE=320000 YTD=10000
 
 run-rmd:
-	$(MAKE) -C agents/rmd run ACCOUNT_ID=$(ACCOUNT_ID) $(if $(BALANCE),BALANCE=$(BALANCE)) $(if $(YTD),YTD=$(YTD))
+	AWS_PROFILE=data-lake-dev uv run python agents/rmd/agent.py $(ACCOUNT_ID) \
+		$(if $(BALANCE),--balance $(BALANCE)) \
+		$(if $(YTD),--ytd $(YTD)) \
+		$(if $(CASH),--cash $(CASH))
+
+# make run-manual-rmd DOB=1950-03-15 TYPE="Traditional IRA" BALANCE=320000 YTD=10000
 
 run-manual-rmd:
-	$(MAKE) -C agents/rmd run-manual DOB=$(DOB) TYPE="$(TYPE)" BALANCE=$(BALANCE) YTD=$(YTD)
+	uv run python agents/rmd/agent.py --manual \
+		--dob $(DOB) \
+		--account-type "$(TYPE)" \
+		--balance $(BALANCE) \
+		$(if $(YTD),--ytd $(YTD))
+
+# make run-nl-rmd TEXT="John Smith, trad IRA, born March 1950, balance 320k"
 
 run-nl-rmd:
-	$(MAKE) -C agents/rmd run-nl TEXT="$(TEXT)"
+	uv run python agents/rmd/agent.py --nl "$(TEXT)"
+
+# ── Auth ──────────────────────────────────────────────────────────────────────
+# Fetches a Bearer token from the dev Lambda and saves it to .env.
+# Skips fetch if existing token has more than 1 day remaining.
+# Usage: make token
+
+TOKEN_LAMBDA=arn:aws:lambda:us-east-1:851725219327:function:dev-data-lake-tokenreq-tokenrequestrequesterE21E4F-udO6xaGKWVcy
+
+token:
+	@python3 scripts/check_token.py || ( \
+		AWS_PROFILE=data-lake-dev aws lambda invoke \
+			--function-name $(TOKEN_LAMBDA) \
+			--payload '{"httpMethod":"GET"}' \
+			--cli-binary-format raw-in-base64-out \
+			/tmp/farther_token.json > /dev/null && \
+		python3 scripts/save_token.py \
+	)
+
+# ── Lint ──────────────────────────────────────────────────────────────────────
 
 lint:
-	$(MAKE) -C agents/rmd lint
+	uv run ruff check agents/

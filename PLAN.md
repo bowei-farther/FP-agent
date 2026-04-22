@@ -40,6 +40,11 @@ These apply to every agent, every step.
 | Ontology only — no Athena | Mix ontology + Athena | Mixing sources creates reconciliation problems. One source = one auth = one failure mode |
 | `decision` enum in Python | Free text from LLM | Machine-readable action code for UI and orchestrator. LLM must never control decision values |
 | `data_quality[]` separate from `flags[]` | One combined list | `flags[]` is for advisors. `data_quality[]` is for systems. They serve different consumers |
+| ontology-evals wired in Step 1, not Step 2 | Defer observability to Step 2 | `run_tests.py` pass/fail is blind — no tool call traces, no latency, no visibility into *why* a fixture passes. Phoenix from day one means the foundation is observable before anything is integrated |
+| No CloudWatch for agent observability | CloudWatch | CloudWatch measures infrastructure (Lambda errors, queue depth). ontology-evals + Phoenix measures agent correctness — tool call arguments, turn count, decision distribution. Wrong tool for the job |
+| Latency baseline set in Step 1 | Measure later | Without a p95 threshold established before Bedrock swap, there is no way to know if the swap degraded performance. Baseline must exist before comparison is possible |
+| 3-run stability check before Step 1 gate | Run fixtures once | `temperature=0` reduces variance but does not eliminate it. A fixture that flips pass/fail across runs is unreliable regardless of the current result. Stability must be proven, not assumed |
+| No numeric confidence scores | `"confidence": 0.82` | This is a deterministic system. Float scores imply probabilistic reasoning and invite misuse (thresholding, averaging). Named flags (`data_quality[]`, `completeness`) carry the same information with explicit semantics |
 
 ---
 
@@ -328,14 +333,35 @@ Auth via IAM — already in Makefile as `AWS_PROFILE=data-lake-dev`.
 
 Before Step 2 can begin:
 
+**Correctness**
 - [x] `make test` → 18/18 pass
-- [x] Every output has `decision` enum — uppercase, Python-controlled
+- [x] Every output has `decision` enum — uppercase, Python-controlled (`compute_rmd`, `pre_check`, `post_check`)
 - [x] Every output has all schema keys — `OUTPUT_SCHEMA` merge in `post_check`
 - [x] Every output has `data_quality[]` and `completeness`
 - [x] Every output has `input_echo`
-- [x] JSON parse retry — 3-attempt loop with fence stripping
+- [x] JSON parse retry — 3-attempt loop with fence stripping (`agent.py`)
 - [x] NL layer — `parser.py` free-text → structured `client_input`
-- [x] CI gate blocking on fixture failures
+- [ ] CI gate blocking on fixture failures (`.github/workflows/test.yml`)
+
+**Observability**
+- [x] Phoenix tracing wired into `run_tests.py --trace` — Anthropic calls auto-instrumented
+- [ ] `make test-trace` run against 18 fixtures — traces visible in Phoenix, tool call args confirmed
+- [ ] LLM-as-judge criterion confirmed: "Is the recommendation consistent with age and account type?"
+
+**Latency**
+- [x] p50/p95 latency measured per fixture via `run_tests.py --latency` — p95 threshold enforced
+- [x] Baseline recorded (Anthropic direct, claude-haiku-4-5, 18 fixtures): p50=3.83s p75=4.64s p95=11.40s mean=4.28s — threshold set to 15s. Subsequent runs: p95=6.24s, p95=8.12s (all within threshold)
+- [ ] Latency re-measured after Bedrock swap — must not exceed baseline
+
+**Stability**
+- [x] CI runs fixture suite 3 consecutive times — any flip-flop fails the build
+- [x] Full 3-run pass confirmed locally (3×18/18, p95=8.12s, clean output — 2026-04-21)
+
+**Bedrock**
+- [ ] Bedrock swap verified — all correctness, latency, and stability checks pass on `BedrockModel`
+
+**Post-Step-1 backlog (do before Step 2)**
+- [ ] Task 13 — Replace free-form Strands agent with a graph/workflow: current pipeline always calls `get_client_data` → `compute_rmd` in that order (deterministic), yet pays 3 LLM round-trips per call. Wire these two steps as Python nodes in a Strands graph so only the final explanation step hits the LLM. Expected: p50 drops from ~4s to ~1s, p95 outliers eliminated.
 
 ---
 
@@ -455,14 +481,7 @@ Agent proceeds (or routes to OMS)
 Stream result back token-by-token rather than waiting for full response.
 Use FastAPI with Server-Sent Events. Same pattern as Proteus `converse-orchestrator`.
 
-**2I — Athena wiring for TLH lots**
-
-Once TLH agent is proven correct on manual input:
-- Wire `vendor_blackdiamond.taxlots` for position-level unrealized gains
-- Wire `vendor_blackdiamond.transactions` for wash-sale tracking
-- Note: BlackDiamond data only goes back to 2026-02-11. No prior-year data.
-
-**2J — RAG layer for IRS edge cases**
+**2I — RAG layer for IRS edge cases**
 
 RAG is needed when:
 - Edge cases emerge in production that hardcoded logic doesn't handle
@@ -471,13 +490,34 @@ RAG is needed when:
 
 RAG sources: IRS Publication 590-B, SECURE 2.0 text, IRS Uniform Lifetime Table updates.
 
-**2K — Observability (CloudWatch)**
+**2J — Observability (ontology-evals + Phoenix)**
 
-- Evaluations per day per strategy
-- Tool call failure rates
-- p95 latency per agent
-- `data_quality` flag distribution (how often is balance a proxy?)
-- `decision` distribution (what fraction of clients need to act now?)
+Wire existing fixtures into ontology-evals `config.json`. Each fixture gets structured assertions evaluated automatically and results uploaded to Arize Phoenix for tracing.
+
+```json
+{
+  "name": "rmd-agent",
+  "model": "claude-haiku-4-5-20251001",
+  "assertions": [
+    {"type": "exact_value", "field": "decision"},
+    {"type": "exact_value", "field": "withdrawal_status"},
+    {"type": "field_populated", "field": "rmd_required_amount"},
+    {"type": "tool_called", "tool": "compute_rmd"},
+    {"type": "set_subset", "field": "data_quality", "expected": ["USING_LATEST_BALANCE_AS_PROXY"]},
+    {"type": "max_turns", "value": 5},
+    {"type": "max_latency_s", "value": 10}
+  ]
+}
+```
+
+Phoenix shows per-fixture pass/fail with full tool call traces. Add LLM-as-judge criterion:
+- "Is the RMD recommendation consistent with the client's age and account type?"
+
+Key metrics surfaced automatically:
+- Per-fixture PASS/FAIL with assertion breakdown
+- Tool call count and latency per evaluation
+- `decision` distribution across fixture suite
+- `data_quality` flag frequency (how often is balance a proxy?)
 
 ### Step 2 completion gate
 
@@ -493,28 +533,24 @@ RAG sources: IRS Publication 590-B, SECURE 2.0 text, IRS Uniform Lifetime Table 
 
 ## Step 3 — Scientific Evaluation + Agents 4–16
 
-### 3A — ontology-evals dataset
+### 3A — Expand fixture suite to 50+
 
-Wire existing fixtures into ontology-evals `config.json`:
-```json
-{
-  "name": "rmd-agent",
-  "assertions": [
-    {"type": "exact_value", "field": "decision"},
-    {"type": "exact_value", "field": "withdrawal_status"},
-    {"type": "field_populated", "field": "rmd_required_amount", "when": "eligible=true"},
-    {"type": "tool_called", "value": "compute_rmd"},
-    {"type": "set_contains", "field": "data_quality", "values": ["..."]}
-  ]
-}
-```
+Extend ontology-evals dataset with 50+ fixtures covering boundary cases not in the current 18:
+- All IRS age boundaries (73, 74, 80, 90, 100, 101)
+- All eligible account types including aliases
+- All cash coverage scenarios
+- All time pressure scenarios (Jan, June, Oct, Dec 1, Dec 28)
+- Multi-account same client
+- NL input edge cases
 
-### 3B — Phoenix dashboard + LLM-as-judge
+Run full suite on every commit. Any regression blocks merge.
 
-Arize Phoenix for production monitoring:
-- Trace every tool call with token count and latency
-- LLM-as-judge for output quality
-- Hard metrics: accuracy on fixture suite, latency p95, tool call count per evaluation
+### 3B — LLM-as-judge quality criteria
+
+Add additional LLM-as-judge evaluators in ontology-evals `config.json`:
+- "Does the `flags[]` list correctly reflect deadline urgency given the date?"
+- "Is the `reason` field consistent with the `decision` value?"
+- "Are `data_quality` flags present when proxy or advisor-provided data was used?"
 
 ### 3C — 50+ fixtures, regression CI
 
@@ -542,19 +578,19 @@ Priority order based on data availability:
 | Agent | Blocker | Unlock condition |
 |---|---|---|
 | #3 Cash Drag Detector | IPS cash target not in ontology | CRM field `ips_cash_target` added |
-| #8 QCD Recommender | Charitable intent flag, YTD distributions | CRM `charitable_intent` + Athena YTD wiring |
-| #4 TLH | Lot-level data, marginal tax rate | BlackDiamond taxlots + CRM `federal_tax_bracket` |
+| #8 QCD Recommender | Charitable intent flag, YTD distributions | CRM `charitable_intent` field |
+| #4 TLH | Lot-level data, marginal tax rate | Lot-level data source + CRM `federal_tax_bracket` |
 | #6 Withdrawal Sequencing | Income need, SS start age, tax rate | Financial plan integration + CRM fields |
 | #2 Roth Conversion | Marginal tax rate | CRM `federal_tax_bracket` field |
-| #5 Holding Period | Purchase date per lot | BlackDiamond taxlots |
+| #5 Holding Period | Purchase date per lot | Lot-level data source |
 | #7 Asset Location | Dividend yield, qualified classification | Market data vendor |
 | #9 Appreciated Asset | Charitable intent, AGI | CRM fields |
 | #10 Muni Bond | `muni_state` unpopulated in holdings, yield data | Market data vendor fix |
-| #11 Dividend Treatment | Qualified/non-qualified at position level | Partially available via transactions |
+| #11 Dividend Treatment | Qualified/non-qualified at position level | Position-level data source |
 | #12 Borrow vs. Sell | SBLOC rate, estate planning flag | CRM fields + custodian API |
-| #13 Step-Up in Basis | Purchase date, estate flag | BlackDiamond taxlots + CRM |
+| #13 Step-Up in Basis | Purchase date, estate flag | Lot-level data source + CRM |
 | #14 HSA | HDHP eligibility, coverage type | CRM fields |
-| #15 QOZ | Transaction-level gain date | BlackDiamond transactions |
+| #15 QOZ | Transaction-level gain date | Transaction-level data source |
 | #16 NUA | Employer stock cost basis from plan records | Plan administrator feed |
 
 **The single unlock that matters most:**

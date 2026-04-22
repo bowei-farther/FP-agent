@@ -314,10 +314,9 @@ wheels = [
 [[package]]
 name = "financial-planning"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "anthropic" },
-    { name = "pydantic" },
     { name = "requests" },
     { name = "strands-agents", extra = ["anthropic"] },
 ]
@@ -331,7 +330,6 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "anthropic", specifier = ">=0.40.0" },
-    { name = "pydantic", specifier = ">=2.0.0" },
     { name = "requests", specifier = ">=2.31.0" },
     { name = "strands-agents", extras = ["anthropic"], specifier = ">=1.35.0" },
 ]

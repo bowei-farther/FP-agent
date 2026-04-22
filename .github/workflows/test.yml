@@ -3,12 +3,14 @@ name: RMD Agent Tests
 on:
   push:
     branches: [main]
+    paths: ['agents/rmd/**']
   pull_request:
     branches: [main]
+    paths: ['agents/rmd/**']
 
 jobs:
   test-rmd:
-    name: RMD fixtures (18/18)
+    name: RMD fixtures — correctness + stability
     runs-on: ubuntu-latest
 
     steps:
@@ -20,8 +22,18 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
-      - name: Run RMD fixtures
+      # Run 3 times from repo root — imports resolve as agents.rmd.core (P14)
+      - name: Run fixtures (run 1 of 3)
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        working-directory: agents/rmd
-        run: uv run --project ${{ github.workspace }} python run_tests.py
+        run: uv run python agents/rmd/run_tests.py
+
+      - name: Run fixtures (run 2 of 3)
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: uv run python agents/rmd/run_tests.py
+
+      - name: Run fixtures (run 3 of 3) + latency report
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: uv run python agents/rmd/run_tests.py --latency
