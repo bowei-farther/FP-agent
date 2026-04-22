@@ -1,0 +1,16 @@
+{
+  "id": "real-01",
+  "description": "Rollover IRA, age 87, Schwab — partial withdrawal, In Progress",
+  "account_id": "33649235",
+  "_client": "Adela Karliner",
+  "_custodian": "Schwab",
+  "client_input": {
+    "prior_year_end_balance": 1912648.16,
+    "withdrawal_amount_ytd": 20000.00
+  },
+  "expected_eligible": true,
+  "expected_status": "In Progress",
+  "expected_decision": "RMD_IN_PROGRESS",
+  "expected_rmd_amount": 132822.79,
+  "expected_remaining": 112822.79
+}

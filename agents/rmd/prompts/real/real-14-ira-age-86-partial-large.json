@@ -1,0 +1,16 @@
+{
+  "id": "real-14",
+  "description": "Traditional IRA, age 86, Schwab — large balance, partial withdrawal",
+  "account_id": "49217568",
+  "_client": "Ann Allan",
+  "_custodian": "Schwab",
+  "client_input": {
+    "prior_year_end_balance": 5570373.77,
+    "withdrawal_amount_ytd": 73087.70
+  },
+  "expected_eligible": true,
+  "expected_status": "In Progress",
+  "expected_decision": "RMD_IN_PROGRESS",
+  "expected_rmd_amount": 366471.96,
+  "expected_remaining": 293384.26
+}

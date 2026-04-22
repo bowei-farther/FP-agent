@@ -1,6 +1,6 @@
 # Financial Planning Agent System — System Design
 
-> Last updated: 2026-04-21
+> Last updated: 2026-04-22
 
 ---
 
@@ -139,11 +139,11 @@ The returned dict always contains (guaranteed by `post_check`). Full schema defi
 | `client_name` | str or None | Built | Resolved from ontology or input |
 | `advisor_name` | str or None | Built | Resolved from ontology or input |
 | `_source` | str | Built | Where the data came from (P4) |
-| `decision` | str enum | Step 1 Task 2 | Machine-readable action enum — set by Python, never LLM (P10) |
-| `missing_fields` | list[str] | Step 1 Task 2 | Fields that could not be resolved |
-| `data_quality` | list[str] | Step 1 Task 4 | System-facing named provenance constants (P7) |
-| `completeness` | str | Step 1 Task 4 | `full` / `partial` / `minimal` (P4) |
-| `input_echo` | dict | Step 1 Task 6 | Exact field values used in the calculation (P4) |
+| `decision` | str enum | Built | Machine-readable action enum — set by Python, never LLM (P10) |
+| `missing_fields` | list[str] | Built | Fields that could not be resolved |
+| `data_quality` | list[str] | Built | System-facing named provenance constants (P7) |
+| `completeness` | str | Built | `full` / `partial` / `minimal` (P4) |
+| `input_echo` | dict | Built | Exact field values used in the calculation (P4) |
 
 The integration agent receives this contract and nothing else.
 
@@ -154,29 +154,33 @@ Advisor input (free text or structured)
         │
         ▼
   NL extraction  (LLM — parse fields only, no reasoning, no guessing)
-  [Step 1, Task 8 — not yet built. Currently: structured dict passed directly to evaluate()]
+  [parser.py — built for RMD, same pattern for Roth/TLH]
         │
         ▼
-  pre_check      (Python — block on missing required data before LLM)
+  pre_check      (Python — block on missing required data, manual-input path only)
         │
         ▼
-  Strands Agent  (LLM — orchestration only)
-    ├── get_client_data()  → fetch from ontology, merge with input, return _missing
-    └── compute_*()        → financial/IRS math in Python, return result
+  get_client_data()  (Python — fetch from ontology, merge with input, return _missing)
         │
         ▼
-  post_check     (Python — enforce output schema, validate result, set decision)
+  compute_*()        (Python — financial/IRS math, eligibility logic, decision enum)
+        │
+        ▼
+  post_check     (Python — enforce output schema, validate result)
         │
         ▼
   evaluate() return dict
 ```
 
-**LLM roles — three separate calls, three separate jobs:**
+No LLM in the sub-agent main path (P15). Sub-agents are deterministic Python workers.
+LLM lives at the integration layer only, where it reasons across all sub-agent outputs.
 
-| Call | Job | Does NOT do |
-|---|---|---|
-| NL extraction | Parse free text → structured fields | Reason, infer, guess |
-| Agent orchestration | Decide tool call order, assemble output | Math, eligibility logic |
+**LLM roles:**
+
+| Call | Where | Job | Does NOT do |
+|---|---|---|---|
+| NL extraction | `parser.py` (sub-agent input layer) | Parse free text → structured fields | Reason, infer, guess |
+| Integration synthesis | Integration agent (Step 2) | Conflict detection, prioritization, advisor explanation | Math, eligibility logic |
 | Explanation (optional) | Structured result → plain English | Change any values |
 
 ### Development model — one agent at a time

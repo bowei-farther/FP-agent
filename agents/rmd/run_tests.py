@@ -177,7 +177,7 @@ def main() -> None:
     if args.trace:
         _setup_tracing()
 
-    fixtures = sorted(PROMPTS_DIR.glob("*.json"))
+    fixtures = sorted(f for f in PROMPTS_DIR.glob("*.json") if not f.name.startswith("nl-"))
     if not fixtures:
         print("No fixtures found in prompts/")
         sys.exit(1)

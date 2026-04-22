@@ -1,0 +1,16 @@
+{
+  "id": "real-03",
+  "description": "IRA, age 77, Schwab — no withdrawals, Not Taken",
+  "account_id": "60376025",
+  "_client": "Adrian Simons",
+  "_custodian": "Schwab",
+  "client_input": {
+    "prior_year_end_balance": 408991.91,
+    "withdrawal_amount_ytd": 0.00
+  },
+  "expected_eligible": true,
+  "expected_status": "Not Started",
+  "expected_decision": "RMD_PENDING",
+  "expected_rmd_amount": 17859.91,
+  "expected_remaining": 17859.91
+}

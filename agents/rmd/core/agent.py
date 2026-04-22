@@ -76,6 +76,10 @@ def evaluate(auth_token: str, account_id: str, client_input: dict | None = None,
         market_value=data.get("market_value"),
         available_cash=data.get("available_cash"),
         _today=_today,
+        # Inherited IRA fields — only used when account_type is Inherited IRA
+        beneficiary_dob=client_input.get("beneficiary_dob"),
+        owner_death_date=client_input.get("owner_death_date"),
+        is_spouse_beneficiary=client_input.get("is_spouse_beneficiary", False),
     )
 
     # Merge data provenance into result

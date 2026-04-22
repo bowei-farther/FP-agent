@@ -1,0 +1,16 @@
+{
+  "id": "real-18",
+  "description": "Traditional IRA, age 73, Schwab — first RMD year, partial withdrawal",
+  "account_id": "26689006",
+  "_client": "Amy Jackson",
+  "_custodian": "Schwab",
+  "client_input": {
+    "prior_year_end_balance": 663016.16,
+    "withdrawal_amount_ytd": 17737.15
+  },
+  "expected_eligible": true,
+  "expected_status": "In Progress",
+  "expected_decision": "RMD_IN_PROGRESS",
+  "expected_rmd_amount": 25019.48,
+  "expected_remaining": 7282.33
+}

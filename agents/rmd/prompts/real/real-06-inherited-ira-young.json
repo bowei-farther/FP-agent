@@ -1,0 +1,14 @@
+{
+  "id": "real-06",
+  "description": "Inherited IRA, age 38, Schwab — young beneficiary, Requires Review",
+  "account_id": "43021390",
+  "_client": "Adam Town",
+  "_custodian": "Schwab",
+  "client_input": {
+    "prior_year_end_balance": 100289.03,
+    "withdrawal_amount_ytd": 2104.38
+  },
+  "expected_eligible": null,
+  "expected_status": "Manual Review Required",
+  "expected_decision": "MANUAL_REVIEW"
+}

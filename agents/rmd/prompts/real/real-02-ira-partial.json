@@ -1,0 +1,16 @@
+{
+  "id": "real-02",
+  "description": "IRA, age 82, Schwab — partial withdrawal, In Progress",
+  "account_id": "38279295",
+  "_client": "Adrian Nolan",
+  "_custodian": "Schwab",
+  "client_input": {
+    "prior_year_end_balance": 181722.74,
+    "withdrawal_amount_ytd": 5895.00
+  },
+  "expected_eligible": true,
+  "expected_status": "In Progress",
+  "expected_decision": "RMD_IN_PROGRESS",
+  "expected_rmd_amount": 9822.85,
+  "expected_remaining": 3927.85
+}

@@ -1,0 +1,16 @@
+{
+  "id": "real-09",
+  "description": "IRA, age 79, Fidelity — no withdrawals, Not Taken",
+  "account_id": "628962582",
+  "_client": "Alice Lucas",
+  "_custodian": "Fidelity IWS",
+  "client_input": {
+    "prior_year_end_balance": 264014.37,
+    "withdrawal_amount_ytd": 0.00
+  },
+  "expected_eligible": true,
+  "expected_status": "Not Started",
+  "expected_decision": "RMD_PENDING",
+  "expected_rmd_amount": 12512.53,
+  "expected_remaining": 12512.53
+}

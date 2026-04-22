@@ -1,0 +1,18 @@
+{
+  "id": "real-08",
+  "description": "Employer Retirement Plan, age 94, Pershing — not taken (high age, factor 9.5), DOB+type from client_input",
+  "account_id": "BDY017346",
+  "_client": "Al Povhe",
+  "_custodian": "Pershing Advisory Solutions",
+  "client_input": {
+    "prior_year_end_balance": 92706.47,
+    "withdrawal_amount_ytd": 0.00,
+    "date_of_birth": "1932-01-01",
+    "account_type": "Rollover IRA"
+  },
+  "expected_eligible": true,
+  "expected_status": "Not Started",
+  "expected_decision": "RMD_PENDING",
+  "expected_rmd_amount": 9758.58,
+  "expected_remaining": 9758.58
+}

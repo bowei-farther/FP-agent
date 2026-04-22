@@ -1,0 +1,15 @@
+{
+  "id": "real-21",
+  "description": "Designated Beneficiary (Fidelity label for Inherited IRA), age 76, Fidelity — Requires Review",
+  "account_id": "655087499",
+  "_client": "Abbie Lane",
+  "_custodian": "Fidelity IWS",
+  "_note": "Fidelity stores inherited IRAs as 'Designated Beneficiary' — was silently NO_ACTION before fix",
+  "client_input": {
+    "prior_year_end_balance": 308108.85,
+    "withdrawal_amount_ytd": 0.00
+  },
+  "expected_eligible": null,
+  "expected_status": "Manual Review Required",
+  "expected_decision": "MANUAL_REVIEW"
+}
